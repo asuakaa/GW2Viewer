@@ -95,14 +95,14 @@ void ConversationViewer::Draw()
         bool const isScriptedStartState = conversationHasScriptedStart && state.IsScriptedStateState();
         if (isScriptedStartState)
         {
-            std::set targets { std::from_range, conversation.States | std::views::transform(&Content::Conversation::State::StateID) };
+            std::set<int32> targets { std::from_range, conversation.States | std::views::transform(&Content::Conversation::State::StateID) };
             targets.erase(state.StateID);
             for (auto const& state : conversation.States)
                 for (auto const& transition : state.Transitions | std::views::filter([](Content::Conversation::State::Transition const& transition) { return iconInfo[iconToIconInfoIndex[transition.Icon]].Name != "Back"; }))
                     for (auto const& target : transition.Targets)
                         targets.erase(target.TargetStateID);
 
-            uint32 i = 0;
+            int32 i = 0;
             std::erase_if(state.ScriptedTransitions, [&targets](Content::Conversation::State::Transition const& transition) { return !targets.contains(transition.Targets.begin()->TargetStateID); });
             for (auto const& target : targets)
             {
@@ -232,7 +232,7 @@ void ConversationViewer::Draw()
             I::TreePushOverrideID(id);
         }
 
-        uint32 nextExpectedTransitionID = 0;
+        int32 nextExpectedTransitionID = 0;
         for (auto const& transition : transitions)
         {
             if (stateOpen)
@@ -253,14 +253,14 @@ void ConversationViewer::Draw()
                 I::SetNextItemAllowOverlap();
                 bool const open = I::TreeNodeEx(&transition,
                     ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | (transition.Targets.empty() ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_DefaultOpen),
-                    isScriptedStartState ? "" : "<c=#4>[<c=#FFFF>%u</c>]</c> ",
+                    isScriptedStartState ? "" : "<c=#4>[<c=#FFFF>%d</c>]</c> ",
                     transition.TransitionID);
 
                 if (scoped::ItemTooltip())
                 {
-                    auto const drawImpl = [](char const* name, uint32 value, std::optional<uint32> def = { }, bool invert = false)
+                    auto const drawImpl = [](char const* name, int32 value, std::optional<int32> def = { }, bool invert = false)
                     {
-                        I::Text(!def || (value == *def ^ invert) ? "%s: %u" : "<c=#F00>%s: %u</c>", name, value);
+                        I::Text(!def || (value == *def ^ invert) ? "%s: %d" : "<c=#F00>%s: %d</c>", name, value);
                     };
                     #define draw(field, ...) drawImpl(#field, transition.##field, __VA_ARGS__)
                     draw(TransitionID, { });
@@ -323,10 +323,10 @@ void ConversationViewer::Draw()
 
                 if (isScriptedStartState)
                 {
-                    uint32 const target = transition.Targets.begin()->TargetStateID;
+                    int32 const target = transition.Targets.begin()->TargetStateID;
 
                     I::SameLine(0, 0);
-                    if (EditingScriptedStartTransitionStateID.value_or(-1) == target)
+                    if (EditingScriptedStartTransitionStateID.value_or(-2) == target)
                     {
                         auto& situation = G::Config.ConversationScriptedStartSituations[ConversationID][target];
                         I::SetNextItemWidth(-FLT_MIN);
@@ -365,8 +365,18 @@ void ConversationViewer::Draw()
                     if (I::TreeNodeEx("Transition Target Flags", ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, "<c=#F00>Transition Target Flags: %u</c>", target.Flags))
                         I::TreePop();
 
+                bool foundTarget = false;
                 for (auto const& state : conversation.States | std::views::filter([&target](Content::Conversation::State const& state) { return state.StateID == target.TargetStateID; }))
+                {
+                    foundTarget = true;
                     drawState(transitionOpen, state, visitedStates, startingSpeakerNameTextID, drawState);
+                }
+                if (!foundTarget && transitionOpen)
+                {
+                    if (I::TreeNodeEx(&target.TargetStateID, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, std::format("<c=#{0}4>[<c=#{0}F>{1}</c>] {2}</c>", target.TargetStateID == -1 ? "F80" : "F00", target.TargetStateID, target.TargetStateID == -1 ? "Conversation ended without transition" : "Target state missing").c_str()))
+                        I::TreePop();
+                    I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
+                }
             }
             if (wikiWrite && transitionOpen && transition.Targets.empty())
             {

@@ -167,7 +167,7 @@ public:
             ),
             LoadingOperation::Make("ConversationStateTransitions",
                 "GenID, StateID, StateTextID, TransitionID, TextID, CostAmount, CostType, CostKarma, Diplomacy, Unk, Personality, Icon, SkillDefDataID",
-                [](uint32 GenID, uint32 StateID, uint32 StateTextID, uint32 TransitionID, uint32 TextID, uint32 CostAmount, uint32 CostType, uint32 CostKarma, uint32 Diplomacy, uint32 Unk, uint32 Personality, uint32 Icon, uint32 SkillDefDataID)
+                [](uint32 GenID, uint32 StateID, uint32 StateTextID, int32 TransitionID, uint32 TextID, uint32 CostAmount, uint32 CostType, uint32 CostKarma, uint32 Diplomacy, uint32 Unk, uint32 Personality, uint32 Icon, uint32 SkillDefDataID)
                 {
                     for (auto& state : Content::conversations[GenID].States | std::views::filter([StateID, StateTextID](auto const& state) { return state.StateID == StateID && state.TextID == StateTextID; }))
                         state.Transitions.emplace(TransitionID, TextID, CostAmount, CostType, CostKarma, Diplomacy, Unk, Personality, Icon, SkillDefDataID);
@@ -179,7 +179,7 @@ public:
             ),
             LoadingOperation::Make("ConversationStateTransitionTargets",
                 "GenID, StateID, StateTextID, TransitionID, TransitionTextID, TargetStateID, Flags",
-                [](uint32 GenID, uint32 StateID, uint32 StateTextID, uint32 TransitionID, uint32 TransitionTextID, uint32 TargetStateID, uint32 Flags)
+                [](uint32 GenID, uint32 StateID, uint32 StateTextID, int32 TransitionID, uint32 TransitionTextID, int32 TargetStateID, uint32 Flags)
                 {
                     for (auto& state : Content::conversations[GenID].States | std::views::filter([StateID, StateTextID](auto const& state) { return state.StateID == StateID && state.TextID == StateTextID; }))
                         for (auto& transition : state.Transitions | std::views::filter([TransitionID, TransitionTextID](auto const& transition) { return transition.TransitionID == TransitionID && transition.TextID == TransitionTextID; }))
@@ -192,7 +192,7 @@ public:
             ),
             LoadingOperation::Make("AgentConversation",
                 "Time, MapSession, AgentX, AgentY, AgentZ, AgentFacing, ConversationGenID, ConversationStateID, ConversationStateTextID, ConversationStateTransitionID, ConversationStateTransitionTextID, Session, Map",
-                [](uint64 Time, uint32 MapSession, float AgentX, float AgentY, float AgentZ, float AgentFacing, uint32 ConversationGenID, uint32 ConversationStateID, uint32 ConversationStateTextID, uint32 ConversationStateTransitionID, int32 ConversationStateTransitionTextID, uint32 Session, uint32 Map)
+                [](uint64 Time, uint32 MapSession, float AgentX, float AgentY, float AgentZ, float AgentFacing, uint32 ConversationGenID, uint32 ConversationStateID, uint32 ConversationStateTextID, int32 ConversationStateTransitionID, int32 ConversationStateTransitionTextID, uint32 Session, uint32 Map)
                 {
                     auto& conversation = Content::conversations[ConversationGenID];
                     conversation.Encounter = { Time, { AgentX, AgentY, AgentZ, AgentFacing }, Map, MapSession, Session };
@@ -201,7 +201,7 @@ public:
                     {
                         state.Encounter = conversation.Encounter;
 
-                        if (ConversationStateTextID != -1)
+                        if (ConversationStateTransitionTextID != -1)
                             for (auto& transition : state.Transitions | std::views::filter([ConversationStateTransitionID, ConversationStateTransitionTextID](auto const& transition) { return transition.TransitionID == ConversationStateTransitionID && transition.TextID == ConversationStateTransitionTextID; }))
                                 transition.Encounter = conversation.Encounter;
                     }

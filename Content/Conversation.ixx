@@ -27,13 +27,13 @@ struct Conversation
         {
             struct Target
             {
-                uint32 TargetStateID;
+                int32 TargetStateID;
                 uint32 Flags;
 
                 auto operator<=>(Target const&) const = default;
             };
 
-            uint32 TransitionID;
+            int32 TransitionID;
             uint32 TextID;
             uint32 CostAmount;
             uint32 CostType;
@@ -84,10 +84,10 @@ struct Conversation
                 return COMPLETENESS_COMPLETE;
 
             auto const completeness = std::ranges::min(Transitions | std::views::transform(&Transition::GetCompleteness));
-            std::vector<uint32> unique;
+            std::vector<int32> unique;
             unique.reserve(Transitions.size());
             std::ranges::unique_copy(Transitions | std::views::transform(&Transition::TransitionID), std::back_inserter(unique));
-            if (unique.size() != std::ranges::max(unique) + 1)
+            if (unique.size() != std::ranges::max(unique) + 1 + (std::ranges::min(unique) == -1 ? 1 : 0))
                 return std::min(completeness, COMPLETENESS_PRESUMABLY_MISSING);
             return completeness;
         }
