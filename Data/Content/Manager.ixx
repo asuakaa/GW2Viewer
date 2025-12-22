@@ -149,19 +149,22 @@ public:
     }
 
     [[nodiscard]] bool AreNamespacesLoaded() const { return m_loadedNamespaces; }
-    [[nodiscard]] std::span<ContentNamespace const* const> GetNamespaces() const { return m_namespaces; }
-    [[nodiscard]] ContentNamespace const* GetNamespaceRoot() const { return m_root; }
-    [[nodiscard]] ContentNamespace const* GetNamespace(uint32 index) const { return GetNamespaceMutable(index); }
+    [[nodiscard]] std::span<ContentNamespace const* const> GetNamespaces() const { if (AreNamespacesLoaded()) return m_namespaces; return { }; }
+    [[nodiscard]] ContentNamespace const* GetNamespaceRoot() const { return AreNamespacesLoaded() ? m_root : nullptr; }
+    [[nodiscard]] ContentNamespace const* GetNamespace(uint32 index) const { return AreNamespacesLoaded() ? GetNamespaceMutable(index) : nullptr; }
 
     [[nodiscard]] bool AreObjectsLoaded() const { return m_loadedObjects; }
-    [[nodiscard]] std::span<ContentObject const* const> GetObjects() const { return m_objects; }
-    [[nodiscard]] std::span<ContentObject const* const> GetRootedObjects() const { return m_rootedObjects; }
-    [[nodiscard]] std::span<ContentObject const* const> GetUnrootedObjects() const { return m_unrootedObjects; }
-    [[nodiscard]] ContentObject const* GetByIndex(uint32 index) const { return m_objects.at(index); }
-    [[nodiscard]] ContentObject const* GetByGUID(GUID const& guid) const { if (auto const object = Utils::Container::Find(m_objectsByGUID, guid)) return *object; return nullptr; }
-    [[nodiscard]] ContentObject const* GetByDataPointer(byte const* ptr) const { return GetByDataPointerMutable(ptr); }
+    [[nodiscard]] std::span<ContentObject const* const> GetObjects() const { if (AreObjectsLoaded()) return m_objects; return { }; }
+    [[nodiscard]] std::span<ContentObject const* const> GetRootedObjects() const { if (AreObjectsLoaded()) return m_rootedObjects; return { }; }
+    [[nodiscard]] std::span<ContentObject const* const> GetUnrootedObjects() const { if (AreObjectsLoaded()) return m_unrootedObjects; return { }; }
+    [[nodiscard]] ContentObject const* GetByIndex(uint32 index) const { return AreObjectsLoaded() ? m_objects.at(index): nullptr; }
+    [[nodiscard]] ContentObject const* GetByGUID(GUID const& guid) const { if (AreObjectsLoaded()) if (auto const object = Utils::Container::Find(m_objectsByGUID, guid)) return *object; return nullptr; }
+    [[nodiscard]] ContentObject const* GetByDataPointer(byte const* ptr) const { return AreObjectsLoaded() ? GetByDataPointerMutable(ptr) : nullptr; }
     [[nodiscard]] ContentObject const* GetByDataID(GW2Viewer::Content::EContentTypes type, uint32 dataID) const
     {
+        if (!AreObjectsLoaded())
+            return nullptr;
+
         if (auto const typeInfo = GetType(type))
         {
             if (typeInfo->DataIDOffset < 0)
@@ -175,8 +178,8 @@ public:
         return nullptr;
     }
 
-    [[nodiscard]] auto GetByName(std::wstring_view name) const { return Utils::Container::Find(m_objectsByName, name); }
-    [[nodiscard]] auto GetNamespacesByName(std::wstring_view name) const { return Utils::Container::Find(m_namespacesByName, name); }
+    [[nodiscard]] auto GetByName(std::wstring_view name) const { return AreObjectsLoaded() ? Utils::Container::Find(m_objectsByName, name) : nullptr; }
+    [[nodiscard]] auto GetNamespacesByName(std::wstring_view name) const { return AreNamespacesLoaded() ? Utils::Container::Find(m_namespacesByName, name) : nullptr; }
 
 private:
     bool m_loaded = false;
