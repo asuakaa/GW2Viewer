@@ -22,7 +22,7 @@ export namespace GW2Viewer::UI::Viewers
 
 struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COMMENT_CHECK " Conversations", "Conversations", Category::ListViewer }>
 {
-    ConversationListViewer(uint32 id, bool newTab) : Base(id, newTab) { }
+    ConversationListViewer(uint32 id, bool newTab) : Base(id, newTab) { UpdateSearch(); }
 
     std::shared_mutex Lock;
     std::vector<uint32> FilteredList;
@@ -68,6 +68,9 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
     }
     void UpdateSort() override
     {
+        if (std::shared_lock _(Lock); FilteredList.empty())
+            return UpdateSearch();
+
         AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
         {
             context->SetIndeterminate();

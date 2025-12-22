@@ -29,7 +29,7 @@ export namespace GW2Viewer::UI::Viewers
 
 struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Files", Category::ListViewer }>
 {
-    FileListViewer(uint32 id, bool newTab) : Base(id, newTab) { }
+    FileListViewer(uint32 id, bool newTab) : Base(id, newTab) { UpdateSearch(); }
 
     std::shared_mutex Lock;
     std::vector<File> FilteredList;
@@ -112,6 +112,9 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
     }
     void UpdateSort() override
     {
+        if (std::shared_lock _(Lock); FilteredList.empty())
+            return UpdateSearch();
+
         AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
         {
             context->SetIndeterminate();
@@ -151,6 +154,9 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
         AsyncFilter.Run([this, filter = FilterID, string = FilterString, type = FilterType, sort = Sort, invert = SortInvert](Utils::Async::Context context) mutable
         {
             context->SetIndeterminate();
+            for (auto const& index : G::ArchiveIndex)
+                while (!index.IsLoaded())
+                    std::this_thread::sleep_for(100ms);
             auto limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
             limits.first = std::max(0, limits.first);
             std::vector data { std::from_range, G::Game.Archive.GetFiles() | std::views::filter([limits, type](File const& file)

@@ -22,7 +22,7 @@ export namespace GW2Viewer::UI::Viewers
 
 struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "Events", Category::ListViewer }>
 {
-    EventListViewer(uint32 id, bool newTab) : Base(id, newTab) { }
+    EventListViewer(uint32 id, bool newTab) : Base(id, newTab) { UpdateSearch(); }
 
     std::shared_mutex Lock;
     std::vector<Content::EventID> FilteredList;
@@ -69,6 +69,9 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
     }
     void UpdateSort() override
     {
+        if (std::shared_lock _(Lock); FilteredList.empty())
+            return UpdateSearch();
+
         AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
         {
             context->SetIndeterminate();

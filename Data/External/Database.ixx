@@ -122,7 +122,7 @@ public:
                     {
                         G::Viewers::ForEach<UI::Viewers::StringListViewer>([](UI::Viewers::StringListViewer& viewer)
                         {
-                            if (!viewer.FilterString.empty() && !viewer.FilterID)
+                            if (!viewer.FilterString.empty() && !viewer.FilterID || viewer.FilteredList.empty())
                                 viewer.UpdateSearch();
                             else if (viewer.Sort == UI::Viewers::StringListViewer::StringSort::Text || viewer.Sort == UI::Viewers::StringListViewer::StringSort::DecryptionTime)
                                 viewer.UpdateSort();

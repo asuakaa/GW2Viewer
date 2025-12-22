@@ -199,7 +199,7 @@ struct StartupLoading
             .RerunOn = { Encryption, TextLanguage },
             .Handler = [](ProgressBarContext& progress)
             {
-                G::Viewers::Notify(&UI::Viewers::ContentListViewer::UpdateFilter, false);
+                G::Viewers::Notify(&UI::Viewers::ContentListViewer::UpdateFilter);
             }
         });
         AddTask({

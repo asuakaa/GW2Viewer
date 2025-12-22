@@ -9,6 +9,7 @@ import GW2Viewer.UI.Manager;
 import GW2Viewer.UI.Viewers.ListViewer;
 import GW2Viewer.UI.Viewers.ViewerRegistry;
 import GW2Viewer.UI.Windows.ContentSearch;
+import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Async;
 import GW2Viewer.Utils.Encoding;
 import GW2Viewer.Utils.Format;
@@ -24,7 +25,7 @@ export namespace GW2Viewer::UI::Viewers
 
 struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings", "Strings", Category::ListViewer }>
 {
-    StringListViewer(uint32 id, bool newTab) : ListViewer(id, newTab) { }
+    StringListViewer(uint32 id, bool newTab) : ListViewer(id, newTab) { UpdateSearch(); }
 
     std::shared_mutex Lock;
     std::vector<uint32> FilteredList;
@@ -91,6 +92,9 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
     }
     void UpdateSort() override
     {
+        if (std::shared_lock _(Lock); FilteredList.empty())
+            return UpdateSearch();
+
         AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
         {
             context->SetIndeterminate();
@@ -124,6 +128,8 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
         AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, filters = Filters, sort = Sort, invert = SortInvert](Utils::Async::Context context) mutable
         {
             context->SetIndeterminate();
+            while (!G::Game.Text.IsLoaded(G::Config.Language))
+                std::this_thread::sleep_for(100ms);
             auto limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
             limits.first = std::max(0, limits.first);
             limits.second = std::min((int32)G::Game.Text.GetMaxID() - 1, limits.second);
