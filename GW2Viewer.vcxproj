@@ -178,6 +178,7 @@
     <ClCompile Include="UI\Controls\Controls-SearchFilterRange.ixx" />
     <ClCompile Include="UI\Controls\Controls-SearchInput.ixx" />
     <ClCompile Include="UI\Controls\Controls-Texture.ixx" />
+    <ClCompile Include="UI\Controls\Controls-TypeInfo.ixx" />
     <ClCompile Include="UI\Controls\Controls-VoiceButton.ixx" />
     <ClCompile Include="UI\Controls\Controls.cpp" />
     <ClCompile Include="UI\Controls\Controls.ixx" />

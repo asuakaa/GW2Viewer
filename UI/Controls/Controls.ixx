@@ -11,4 +11,5 @@ export import :MapLayout;
 export import :SearchFilterRange;
 export import :SearchInput;
 export import :Texture;
+export import :TypeInfo;
 export import :VoiceButton;

@@ -156,6 +156,9 @@ std::wstring ContentObject::GetFullName() const
 
 uint32 ContentObject::GetIcon() const
 {
+    if (!Type)
+        return { };
+
     for (auto const& field : Type->GetTypeInfo().IconFields)
     {
         for (auto& result : QuerySymbolData(*this, field))
@@ -177,6 +180,9 @@ uint32 ContentObject::GetIcon() const
 
 ContentObject const* ContentObject::GetMap() const
 {
+    if (!Type)
+        return { };
+
     for (auto const& field : Type->GetTypeInfo().MapFields)
     {
         for (auto& result : QuerySymbolData(*this, field))

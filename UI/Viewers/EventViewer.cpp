@@ -72,33 +72,25 @@ void EventViewer::Draw()
             {
                 if (!event.Objectives.empty())
                 {
-                    Data::Content::ContentObject dummyContent { };
                     auto const objectiveIndex = *Selected->second;
                     auto variants = event.Objectives | std::views::filter([objectiveIndex](Content::Event::Objective const& objective) { return objective.EventObjectiveIndex == objectiveIndex; });
                     auto const& objective = eventID.UID ? *std::next(variants.begin(), cache.Objectives.at(objectiveIndex).SelectedVariant) : *std::next(event.Objectives.begin(), objectiveIndex);
                     I::PushItemWidth(-FLT_MIN);
-                    I::InputTextReadOnly("Map", std::format("{}", objective.Map)); Controls::ContentButton(G::Game.Content.GetByDataID(Content::MapDef, objective.Map), &objective.Map);
-                    I::InputTextReadOnly("Event UID", std::format("{}", objective.EventUID));
-                    I::InputTextReadOnly("Event Objective Index", std::format("{}", objective.EventObjectiveIndex));
-                    if (auto const itrType = G::Config.SharedEnums.find("ObjectiveType"); itrType != G::Config.SharedEnums.end())
-                    {
-                        Data::Content::TypeInfo::Symbol dummySymbol { .Enum = Data::Content::TypeInfo::Enum {.Name = "ObjectiveType" } };
-                        I::AlignTextToFramePadding(); I::TextUnformatted("Type:"); I::SameLine(); Data::Content::Symbols::GetByName("uint32")->Draw({ &objective.Type, dummyContent, dummySymbol });
-                    }
-                    else
-                        I::InputTextReadOnly("Type", std::format("{}", objective.Type));
-                    I::InputTextReadOnly("Flags", std::format("0x{:X}", objective.Flags));
-                    I::InputTextReadOnly("TargetCount", std::format("{}", objective.TargetCount));
-                    I::InputTextReadOnly("ProgressBarStyle", std::format("{}", objective.ProgressBarStyle)); Controls::ContentButton(G::Game.Content.GetByGUID(objective.ProgressBarStyle), &objective.ProgressBarStyle);
+                    Controls::Symbol("Map", objective.Map); Controls::ContentButton(G::Game.Content.GetByDataID(Content::MapDef, objective.Map), &objective.Map);
+                    Controls::Symbol("Event UID", objective.EventUID);
+                    Controls::Symbol("Event Objective Index", objective.EventObjectiveIndex);
+                    Controls::SymbolEnum("Type", objective.Type, "ObjectiveType");
+                    Controls::SymbolFlags("Flags", objective.Flags);
+                    Controls::Symbol("TargetCount", objective.TargetCount);
+                    Controls::Symbol("ProgressBarStyle", objective.ProgressBarStyle);
 
-                    Data::Content::TypeInfo::Symbol dummySymbol;
-                    I::AlignTextToFramePadding(); I::TextUnformatted("Text:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &objective.TextID, dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("AgentName:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &objective.AgentNameTextID, dummyContent, dummySymbol });
+                    Controls::SymbolText("Text", objective.TextID);
+                    Controls::SymbolText("AgentName", objective.AgentNameTextID);
 
-                    I::InputTextReadOnly("ExtraInt", std::format("{}", objective.ExtraInt));
-                    I::InputTextReadOnly("ExtraInt2", std::format("{}", objective.ExtraInt2));
-                    I::InputTextReadOnly("ExtraGUID", std::format("{}", objective.ExtraGUID)); Controls::ContentButton(G::Game.Content.GetByGUID(objective.ExtraGUID), &objective.ExtraGUID);
-                    I::InputTextReadOnly("ExtraGUID2", std::format("{}", objective.ExtraGUID2)); Controls::ContentButton(G::Game.Content.GetByGUID(objective.ExtraGUID2), &objective.ExtraGUID2);
+                    Controls::Symbol("ExtraInt", objective.ExtraInt);
+                    Controls::Symbol("ExtraInt2", objective.ExtraInt2);
+                    Controls::Symbol("ExtraGUID", objective.ExtraGUID);
+                    Controls::Symbol("ExtraGUID2", objective.ExtraGUID2);
                     I::PopItemWidth();
                     if (!objective.ExtraBlob.empty())
                     {
@@ -115,26 +107,26 @@ void EventViewer::Draw()
                 {
                     auto const& state = *std::next(event.States.begin(), cache.Event.SelectedVariant);
                     I::PushItemWidth(-FLT_MIN);
-                    I::InputTextReadOnly("Map", std::format("{}", state.Map)); Controls::ContentButton(G::Game.Content.GetByDataID(Content::MapDef, state.Map), &state.Map);
-                    I::InputTextReadOnly("Event UID", std::format("{}", state.UID));
-                    I::InputTextReadOnly("Level", std::format("{}", state.Level));
-                    I::InputTextReadOnly("Flags (client)", std::format("0x{:X}\n{}", std::to_underlying(state.FlagsClient), magic_enum::enum_flags_name(state.FlagsClient, '\n')), ImGuiInputTextFlags_Multiline);
-                    I::InputTextReadOnly("Flags (server)", std::format("0x{:X}\n{}", std::to_underlying(state.FlagsServer), magic_enum::enum_flags_name(state.FlagsServer, '\n')), ImGuiInputTextFlags_Multiline);
-                    I::InputTextReadOnly("AudioEffect", std::format("{}", state.AudioEffect)); Controls::ContentButton(G::Game.Content.GetByGUID(state.AudioEffect), &state.AudioEffect);
-                    I::InputTextReadOnly("A", std::format("{}", state.A));
+                    Controls::Symbol("Map", state.Map); Controls::ContentButton(G::Game.Content.GetByDataID(Content::MapDef, state.Map), &state.Map);
+                    Controls::Symbol("Event UID", state.UID);
+                    Controls::Symbol("Level", state.Level);
+                    Controls::SymbolFlags("Flags (client)", state.FlagsClient);
+                    I::InputTextReadOnly("##FlagsClient", magic_enum::enum_flags_name(state.FlagsClient, '\n'), ImGuiInputTextFlags_Multiline);
+                    Controls::SymbolFlags("Flags (server)", state.FlagsServer);
+                    I::InputTextReadOnly("##FlagsServer", magic_enum::enum_flags_name(state.FlagsServer, '\n'), ImGuiInputTextFlags_Multiline);
+                    Controls::Symbol("AudioEffect", state.AudioEffect); Controls::ContentButton(G::Game.Content.GetByGUID(state.AudioEffect), &state.AudioEffect);
+                    Controls::Symbol("A", state.A);
 
-                    Data::Content::ContentObject dummyContent { };
-                    Data::Content::TypeInfo::Symbol dummySymbol;
-                    I::AlignTextToFramePadding(); I::TextUnformatted("Title:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.TitleTextID, dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("%str1%:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.TitleParameterTextID[0], dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("%str2%:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.TitleParameterTextID[1], dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("%str3%:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.TitleParameterTextID[2], dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("%str4%:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.TitleParameterTextID[3], dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("%str5%:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.TitleParameterTextID[4], dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("%str6%:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.TitleParameterTextID[5], dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("Description:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.DescriptionTextID, dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("MetaText:"); I::SameLine(); Data::Content::Symbols::GetByName("StringID")->Draw({ &state.MetaTextTextID, dummyContent, dummySymbol });
-                    I::AlignTextToFramePadding(); I::TextUnformatted("Icon:"); I::SameLine(); Data::Content::Symbols::GetByName("FileID")->Draw({ &state.FileIconID, dummyContent, dummySymbol });
+                    Controls::SymbolText("Title", state.TitleTextID);
+                    Controls::SymbolText("%str1%", state.TitleParameterTextID[0]);
+                    Controls::SymbolText("%str2%", state.TitleParameterTextID[1]);
+                    Controls::SymbolText("%str3%", state.TitleParameterTextID[2]);
+                    Controls::SymbolText("%str4%", state.TitleParameterTextID[3]);
+                    Controls::SymbolText("%str5%", state.TitleParameterTextID[4]);
+                    Controls::SymbolText("%str6%", state.TitleParameterTextID[5]);
+                    Controls::SymbolText("Description", state.DescriptionTextID);
+                    Controls::SymbolText("MetaText", state.MetaTextTextID);
+                    Controls::SymbolFile("Icon", state.FileIconID);
                     I::PopItemWidth();
                     Controls::Texture(state.FileIconID);
                 }
