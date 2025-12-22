@@ -66,7 +66,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
         FilteredList = std::move(data);
         context->Finish();
     }
-    void UpdateSort()
+    void UpdateSort() override
     {
         AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
         {
@@ -81,7 +81,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
             SetResult(context, std::move(data));
         });
     }
-    void UpdateSearch()
+    void UpdateSearch() override
     {
         bool textSearch = false;
         FilterID.reset();
@@ -152,14 +152,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
             I::TableSetupColumn("Encountered", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending, 80, (ImGuiID)ConversationSort::EncounteredTime);
             I::TableSetupScrollFreeze(0, 1);
             I::TableHeadersRow();
-
-            if (auto specs = I::TableGetSortSpecs(); specs && specs->SpecsDirty && specs->SpecsCount > 0)
-            {
-                Sort = (ConversationSort)specs->Specs[0].ColumnUserID;
-                SortInvert = specs->Specs[0].SortDirection == ImGuiSortDirection_Descending;
-                specs->SpecsDirty = false;
-                UpdateSort();
-            }
+            HandleTableSort(Sort, SortInvert);
 
             [&](auto _) -> void
             {

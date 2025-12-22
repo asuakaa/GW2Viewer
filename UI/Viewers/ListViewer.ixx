@@ -1,5 +1,6 @@
 export module GW2Viewer.UI.Viewers.ListViewer;
 import GW2Viewer.Common;
+import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Viewers.Viewer;
 import GW2Viewer.UI.Viewers.ViewerRegistry;
 import GW2Viewer.Utils.Scan;
@@ -44,6 +45,25 @@ struct ListViewer : ListViewerBase, RegisterViewer<Self, Info, Config>
     }
 
     std::string Title() override { return this->ViewerInfo.Title; }
+
+    virtual void UpdateSort() = 0;
+    virtual void UpdateSearch() = 0;
+    virtual void UpdateFilter() { UpdateSearch(); }
+
+protected:
+    template<typename SortEnum>
+    bool HandleTableSort(SortEnum& sort, bool& sortInvert)
+    {
+        if (auto specs = I::TableGetSortSpecs(); specs && specs->SpecsDirty && specs->SpecsCount > 0)
+        {
+            sort = (SortEnum)specs->Specs[0].ColumnUserID;
+            sortInvert = specs->Specs[0].SortDirection == ImGuiSortDirection_Descending;
+            specs->SpecsDirty = false;
+            UpdateSort();
+            return true;
+        }
+        return false;
+    }
 };
 
 }

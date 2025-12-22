@@ -17,6 +17,9 @@ struct BookmarkListViewer : ListViewer<BookmarkListViewer, { ICON_FA_BOOKMARK " 
 {
     using ListViewer::ListViewer;
 
+    void UpdateSort() override { }
+    void UpdateSearch() override { }
+
     void Draw() override
     {
         if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, { I::GetStyle().FramePadding.x, 0 }))

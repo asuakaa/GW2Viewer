@@ -181,11 +181,12 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
             default: std::terminate();
         }
     }
-    void UpdateSort()
+    void UpdateSort() override
     {
         m_clearQueue = true;
     }
-    void UpdateFilter(bool delayed = false)
+
+    void PerformFilter(bool delayed)
     {
         FilterName.clear();
         FilterGUID.reset();
@@ -279,11 +280,15 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
             context->Finish();
         });
     }
-    void UpdateSearch()
+    void UpdateSearch() override
     {
         std::unique_lock _(Lock);
         SearchResultsReady.emplace(false);
-        UpdateFilter(true);
+        PerformFilter(true);
+    }
+    void UpdateFilter() override
+    {
+        PerformFilter(false);
     }
 
     void LocateObject(Data::Content::ContentObject const& object) { Locate(&object); }
@@ -484,14 +489,7 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
                 I::Dummy({ avail.x, I::TableGetHeaderRowHeight() });
                 Controls::AsyncProgressBar(AsyncSort);
             }
-
-            if (auto specs = I::TableGetSortSpecs(); specs && specs->SpecsDirty && specs->SpecsCount > 0)
-            {
-                Sort = (ContentSort)specs->Specs[0].ColumnUserID;
-                SortInvert = specs->Specs[0].SortDirection == ImGuiSortDirection_Descending;
-                specs->SpecsDirty = false;
-                UpdateSort();
-            }
+            HandleTableSort(Sort, SortInvert);
 
             std::shared_lock __(Lock);
 

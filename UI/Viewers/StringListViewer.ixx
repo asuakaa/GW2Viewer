@@ -89,7 +89,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
         FilteredList = std::move(data);
         context->Finish();
     }
-    void UpdateSort()
+    void UpdateSort() override
     {
         AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
         {
@@ -104,7 +104,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
             SetResult(context, std::move(data));
         });
     }
-    void UpdateSearch()
+    void UpdateSearch() override
     {
         bool textSearch = false;
         FilterID.reset();
@@ -177,7 +177,6 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
             SetResult(context, std::move(data));
         });
     }
-    auto UpdateFilter() { UpdateSearch(); }
 
     void Draw() override
     {
@@ -238,14 +237,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
             I::TableSetupColumn("Voice", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending, 80, (ImGuiID)StringSort::Voice);
             I::TableSetupScrollFreeze(0, 1);
             I::TableHeadersRow();
-
-            if (auto specs = I::TableGetSortSpecs(); specs && specs->SpecsDirty && specs->SpecsCount > 0)
-            {
-                Sort = (StringSort)specs->Specs[0].ColumnUserID;
-                SortInvert = specs->Specs[0].SortDirection == ImGuiSortDirection_Descending;
-                specs->SpecsDirty = false;
-                UpdateSearch();
-            }
+            HandleTableSort(Sort, SortInvert);
 
             std::shared_lock __(Lock);
             ImGuiListClipper clipper;

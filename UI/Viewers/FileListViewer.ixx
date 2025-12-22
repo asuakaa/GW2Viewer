@@ -110,7 +110,7 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
         FilteredList = std::move(data);
         context->Finish();
     }
-    void UpdateSort()
+    void UpdateSort() override
     {
         AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
         {
@@ -125,7 +125,7 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
             SetResult(context, std::move(data));
         });
     }
-    void UpdateSearch()
+    void UpdateSearch() override
     {
         FilterID.reset();
         if (FilterString.empty())
@@ -168,7 +168,6 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
             SetResult(context, std::move(data));
         });
     }
-    auto UpdateFilter() { UpdateSearch(); }
 
     void Draw() override
     {
@@ -240,14 +239,7 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
             if (scoped::WithStyleVar(ImGuiStyleVar_FramePadding, ImVec2()))
                 I::TableUpdateLayout(I::GetCurrentTable());
             I::TableHeadersRow();
-
-            if (auto specs = I::TableGetSortSpecs(); specs && specs->SpecsDirty && specs->SpecsCount > 0)
-            {
-                Sort = (FileSort)specs->Specs[0].ColumnUserID;
-                SortInvert = specs->Specs[0].SortDirection == ImGuiSortDirection_Descending;
-                specs->SpecsDirty = false;
-                UpdateSearch();
-            }
+            HandleTableSort(Sort, SortInvert);
 
             std::shared_lock __(Lock);
             ImGuiListClipper clipper;
