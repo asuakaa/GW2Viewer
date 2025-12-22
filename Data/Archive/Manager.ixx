@@ -13,12 +13,12 @@ export namespace GW2Viewer::Data::Archive
 class Manager
 {
 public:
-    [[nodiscard]] Source* GetSource(Kind kind = Kind::Game)
+    [[nodiscard]] Source* GetSource(Kind kind = Kind::Main)
     {
         auto const itr = std::ranges::find(m_sources, kind, &Source::Kind);
         return itr != m_sources.end() ? itr.get_ptr() : nullptr;
     }
-    [[nodiscard]] Archive* GetArchive(Kind kind = Kind::Game)
+    [[nodiscard]] Archive* GetArchive(Kind kind = Kind::Main)
     {
         if (auto const source = GetSource(kind))
             return &source->Archive;

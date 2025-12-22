@@ -215,7 +215,7 @@ struct ArchiveIndex : Window
         }
     } Archives[2]
     {
-        { "Gw2.dat", G::ArchiveIndex[Data::Archive::Kind::Game] },
+        { "Gw2.dat", G::ArchiveIndex[Data::Archive::Kind::Main] },
         { "Local.dat", G::ArchiveIndex[Data::Archive::Kind::Local] },
     };
 

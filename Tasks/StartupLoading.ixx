@@ -92,7 +92,7 @@ struct StartupLoading
             .Handler = [](ProgressBarContext& progress)
             {
                 if (!G::Config.GameDatPath.empty())
-                    G::Game.Archive.Add(Data::Archive::Kind::Game, G::Config.GameDatPath);
+                    G::Game.Archive.Add(Data::Archive::Kind::Main, G::Config.GameDatPath);
                 if (!G::Config.LocalDatPath.empty())
                     G::Game.Archive.Add(Data::Archive::Kind::Local,G::Config.LocalDatPath);
                 G::Game.Archive.Load(progress);
@@ -104,6 +104,9 @@ struct StartupLoading
             .Provides = { ArchiveIndex },
             .Handler = [](ProgressBarContext& progress)
             {
+                if (std::filesystem::exists("ArchiveIndex.Game.bin") && !std::filesystem::exists("ArchiveIndex.Main.bin"))
+                    std::filesystem::rename("ArchiveIndex.Game.bin", "ArchiveIndex.Main.bin");
+
                 for (auto const [kind, name] : magic_enum::enum_entries<Data::Archive::Kind>())
                     if (auto const source = G::Game.Archive.GetSource(kind))
                         G::ArchiveIndex[kind].Load(*source, std::format("ArchiveIndex.{}.bin", name));

@@ -346,7 +346,7 @@ private:
 
 enum class Kind
 {
-    Game,
+    Main,
     Local,
 };
 struct File;
