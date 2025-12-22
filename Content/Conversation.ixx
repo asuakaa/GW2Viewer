@@ -1,6 +1,7 @@
 export module GW2Viewer.Content.Conversation;
 import GW2Viewer.Common;
 import GW2Viewer.Common.Time;
+import GW2Viewer.Data.External.Types;
 import GW2Viewer.Data.Game;
 import GW2Viewer.UI.ImGui;
 import GW2Viewer.Utils.Encoding;
@@ -44,6 +45,7 @@ struct Conversation
             uint32 SkillDefDataID;
 
             mutable std::set<Target> Targets;
+            mutable Data::External::Encounter Encounter;
 
             Completeness GetCompleteness() const
             {
@@ -54,11 +56,6 @@ struct Conversation
 
             auto GetIdentity() const { return std::tie(TransitionID, TextID, CostAmount, CostType, CostKarma, Diplomacy, Unk, Personality, Icon, SkillDefDataID); }
             auto operator<=>(Transition const& other) const { return GetIdentity() <=> other.GetIdentity(); }
-
-            mutable Time::Point EncounteredTime;
-            mutable uint32 Session { };
-            mutable uint32 Map { };
-            mutable ImVec4 Position { };
         };
 
         uint32 StateID;
@@ -75,6 +72,7 @@ struct Conversation
 
         mutable std::set<Transition> Transitions;
         mutable std::set<Transition> ScriptedTransitions;
+        mutable Data::External::Encounter Encounter;
 
         bool IsVoting() const { return Flags & 0x20; }
         bool IsStart() const { return Flags & 0x10; }
@@ -97,16 +95,12 @@ struct Conversation
 
         auto GetIdentity() const { return std::tie(StateID, TextID, SpeakerNameTextID, SpeakerPortraitOverrideFileID, Priority, Flags, Voting, Timeout, CostAmount, CostType, Unk); }
         auto operator<=>(State const& other) const { return GetIdentity() <=> other.GetIdentity(); }
-
-        mutable Time::Point EncounteredTime;
-        mutable uint32 Session { };
-        mutable uint32 Map { };
-        mutable ImVec4 Position { };
     };
 
     uint32 UID;
 
     mutable std::set<State> States;
+    mutable Data::External::Encounter Encounter;
 
     Completeness GetCompleteness() const
     {
@@ -159,10 +153,6 @@ struct Conversation
         Utils::String::ReplaceAll(result, "\n", R"(<c=#F00>\n</c>)");
         return result;
     }
-    Time::Point EncounteredTime;
-    uint32 Session { };
-    uint32 Map { };
-    ImVec4 Position { };
 };
 std::map<uint32, struct Conversation> conversations;
 std::shared_mutex conversationsLock;

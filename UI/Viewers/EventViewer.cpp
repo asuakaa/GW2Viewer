@@ -583,7 +583,7 @@ void EventViewer::DrawObjective(Content::Event::Objective const& objective, Cach
                 Entry(uint32 eventUID) : Entry(eventUID, eventUID) { }
             };
             std::vector<Entry> entries;
-            if (params.Objective.Time >= 1744792746000)
+            if (params.Objective.Encounter.Time >= Time::FromTimestampMs(1744792746000))
                 entries.assign_range(std::span((Entry const*)params.Objective.ExtraBlob.data(), params.Objective.ExtraBlob.size() / sizeof(Entry)));
             else
                 entries.assign_range(std::span((uint32 const*)params.Objective.ExtraBlob.data(), params.Objective.ExtraBlob.size() / sizeof(uint32)));

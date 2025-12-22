@@ -59,7 +59,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
                 {
                     if (aInfo && bInfo)
                     {
-                        COMPARE(aInfo->Time, bInfo->Time);
+                        COMPARE(aInfo->Encounter.Time, bInfo->Encounter.Time);
                         COMPARE(aInfo->Index, bInfo->Index);
                     }
                     else
@@ -302,14 +302,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
 
                     I::TableNextColumn();
                     if (info)
-                    {
-                        if (I::Selectable(std::format("<c=#{}>{}</c> {}###DecryptionTime", info->Map ? "F" : "2", ICON_FA_GLOBE, Utils::Format::DurationShortColored("{} ago", Time::UntilNowSecs(Time::FromTimestamp(info->Time)))).c_str()))
-                        {
-                            // TODO: Open map to { info->Map, info->Position }
-                        }
-                        if (scoped::ItemTooltip())
-                            I::TextUnformatted(std::format("Decrypted on: {}", Utils::Format::DateTimeFullLocal(Time::FromTimestamp(info->Time))).c_str());
-                    }
+                        Controls::Encounter(info->Encounter, { .TimeText = "Decrypted on" });
 
                     I::TableNextColumn();
                     Controls::TextVoiceButton(stringID, { .Selectable = true });

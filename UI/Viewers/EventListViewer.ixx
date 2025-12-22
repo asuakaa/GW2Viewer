@@ -252,15 +252,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                         I::TextUnformatted(Utils::Encoding::ToUTF8(event.Title()).c_str());
 
                         I::TableNextColumn();
-                        if (auto time = event.EncounteredTime(); time.time_since_epoch().count())
-                        {
-                            if (I::Selectable(std::format("<c=#{}>{}</c> {}###EncounteredTime", eventID.Map ? "F" : "2", ICON_FA_GLOBE, Utils::Format::DurationShortColored("{} ago", Time::UntilNowSecs(time))).c_str()))
-                            {
-                                // TODO: Open map to { eventID.Map, ?position? }
-                            }
-                            if (scoped::ItemTooltip())
-                                I::TextUnformatted(std::format("Encountered on: {}", Utils::Format::DateTimeFullLocal(time)).c_str());
-                        }
+                        Controls::Encounter({ event.EncounteredTime() });
                     }
                 }
             }(0);

@@ -3,6 +3,7 @@ export import :AsyncProgressBar;
 export import :ContentButton;
 export import :ContentNamespaceButton;
 export import :CopyButton;
+export import :Encounter;
 export import :FileButton;
 export import :FilteredComboBox;
 export import :HexViewer;

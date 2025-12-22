@@ -54,7 +54,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
                 ComplexSort(data, invert, [](uint32 id) { return Content::conversations.at(id).StartingStateText(); });
                 break;
             case EncounteredTime:
-                ComplexSort(data, invert, [](uint32 id) { return Content::conversations.at(id).EncounteredTime; });
+                ComplexSort(data, invert, [](uint32 id) { return Content::conversations.at(id).Encounter.Time; });
                 break;
             default: std::terminate();
         }
@@ -205,15 +205,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
                         I::TextUnformatted(conversation.StartingStateText().c_str());
 
                         I::TableNextColumn();
-                        if (conversation.EncounteredTime.time_since_epoch().count())
-                        {
-                            if (I::Selectable(std::format("<c=#{}>{}</c> {}###EncounteredTime", conversation.Map ? "F" : "2", ICON_FA_GLOBE, Utils::Format::DurationShortColored("{} ago", Time::UntilNowSecs(conversation.EncounteredTime))).c_str()))
-                            {
-                                // TODO: Open map to { conversation.Map, conversation.Position }
-                            }
-                            if (scoped::ItemTooltip())
-                                I::TextUnformatted(std::format("Encountered on: {}", Utils::Format::DateTimeFullLocal(conversation.EncounteredTime)).c_str());
-                        }
+                        Controls::Encounter(conversation.Encounter);
                     }
                 }
             }(0);

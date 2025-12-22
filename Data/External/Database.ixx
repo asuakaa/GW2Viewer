@@ -111,9 +111,9 @@ public:
         {
             LoadingOperation::Make("Texts",
                 "TextID, Key, Time, Session, Map, ClientX, ClientY, ClientZ, ClientFacing",
-                [](uint32 stringID, uint64 key, uint32 time, uint32 session, uint32 map, float x, float y, float z, float facing)
+                [](uint32 TextID, uint64 Key, uint32 Time, uint32 Session, uint32 Map, float ClientX, float ClientY, float ClientZ, float ClientFacing)
                 {
-                    G::Game.Encryption.AddTextKeyInfo(stringID, { key, time, session, map, { x, y, z, facing } });
+                    G::Game.Encryption.AddTextKeyInfo(TextID, { Key, { (uint64)Time * 1000, { ClientX, ClientY, ClientZ, ClientFacing }, Map, Session } });
                 },
                 {
                     .Condition = "Key",
@@ -132,11 +132,11 @@ public:
             ),
             LoadingOperation::Make("Assets",
                 "AssetType, AssetID, Key",
-                [](uint32 assetType, uint32 assetID, uint64 key)
+                [](Encryption::AssetType AssetType, uint32 AssetID, uint64 key)
                 {
-                    G::Game.Encryption.AddAssetKey((Encryption::AssetType)assetType, assetID, key);
-                    if ((Encryption::AssetType)assetType == Encryption::AssetType::Voice)
-                        G::Game.Voice.WipeCache(assetID);
+                    G::Game.Encryption.AddAssetKey(AssetType, AssetID, key);
+                    if (AssetType == Encryption::AssetType::Voice)
+                        G::Game.Voice.WipeCache(AssetID);
                 },
                 {
                     .Condition = "Key",
@@ -191,32 +191,19 @@ public:
                 }
             ),
             LoadingOperation::Make("AgentConversation",
-                "ConversationGenID, ConversationStateID, ConversationStateTextID, ConversationStateTransitionID, ConversationStateTransitionTextID, Time, Session, Map, AgentX, AgentY, AgentZ, AgentFacing",
-                [](uint32 ConversationGenID, uint32 ConversationStateID, uint32 ConversationStateTextID, uint32 ConversationStateTransitionID, uint32 ConversationStateTransitionTextID, uint64 Time, uint32 Session, uint32 Map, float AgentX, float AgentY, float AgentZ, float AgentFacing)
+                "Time, MapSession, AgentX, AgentY, AgentZ, AgentFacing, ConversationGenID, ConversationStateID, ConversationStateTextID, ConversationStateTransitionID, ConversationStateTransitionTextID, Session, Map",
+                [](uint64 Time, uint32 MapSession, float AgentX, float AgentY, float AgentZ, float AgentFacing, uint32 ConversationGenID, uint32 ConversationStateID, uint32 ConversationStateTextID, uint32 ConversationStateTransitionID, int32 ConversationStateTransitionTextID, uint32 Session, uint32 Map)
                 {
                     auto& conversation = Content::conversations[ConversationGenID];
-                    conversation.EncounteredTime = Time::FromTimestampMs(Time);
-                    conversation.Session = Session;
-                    conversation.Map = Map;
-                    conversation.Position = { AgentX, AgentY, AgentZ, AgentFacing };
+                    conversation.Encounter = { Time, { AgentX, AgentY, AgentZ, AgentFacing }, Map, MapSession, Session };
 
                     for (auto& state : conversation.States | std::views::filter([ConversationStateID, ConversationStateTextID](auto const& state) { return state.StateID == ConversationStateID && state.TextID == ConversationStateTextID; }))
                     {
-                        state.EncounteredTime = conversation.EncounteredTime;
-                        state.Session = conversation.Session;
-                        state.Map = conversation.Map;
-                        state.Position = conversation.Position;
+                        state.Encounter = conversation.Encounter;
 
                         if (ConversationStateTextID != -1)
-                        {
                             for (auto& transition : state.Transitions | std::views::filter([ConversationStateTransitionID, ConversationStateTransitionTextID](auto const& transition) { return transition.TransitionID == ConversationStateTransitionID && transition.TextID == ConversationStateTransitionTextID; }))
-                            {
-                                transition.EncounteredTime = conversation.EncounteredTime;
-                                transition.Session = conversation.Session;
-                                transition.Map = conversation.Map;
-                                transition.Position = conversation.Position;
-                            }
-                        }
+                                transition.Encounter = conversation.Encounter;
                     }
                 },
                 {
@@ -228,7 +215,7 @@ public:
                 "Map, UID, TitleTextID, TitleParameterTextID1, TitleParameterTextID2, TitleParameterTextID3, TitleParameterTextID4, TitleParameterTextID5, TitleParameterTextID6, DescriptionTextID, FileIconID, FlagsClient, FlagsServer, Level, MetaTextTextID, AudioEffect, A, Time",
                 [](uint32 Map, uint32 UID, uint32 TitleTextID, uint32 TitleParameterTextID1, uint32 TitleParameterTextID2, uint32 TitleParameterTextID3, uint32 TitleParameterTextID4, uint32 TitleParameterTextID5, uint32 TitleParameterTextID6, uint32 DescriptionTextID, uint32 FileIconID, Content::Event::State::ClientFlags FlagsClient, Content::Event::State::ServerFlags FlagsServer, uint32 Level, uint32 MetaTextTextID, GUID const& AudioEffect, uint32 A, uint64 Time)
                 {
-                    Content::events[{ Map, UID }].States.emplace(Map, UID, TitleTextID, std::array { TitleParameterTextID1, TitleParameterTextID2, TitleParameterTextID3, TitleParameterTextID4, TitleParameterTextID5, TitleParameterTextID6 }, DescriptionTextID, FileIconID, FlagsClient, FlagsServer, Level, MetaTextTextID, AudioEffect, A, Time).first->Time = Time;
+                    Content::events[{ Map, UID }].States.emplace(Map, UID, TitleTextID, std::array { TitleParameterTextID1, TitleParameterTextID2, TitleParameterTextID3, TitleParameterTextID4, TitleParameterTextID5, TitleParameterTextID6 }, DescriptionTextID, FileIconID, FlagsClient, FlagsServer, Level, MetaTextTextID, AudioEffect, A).first->Encounter = Time;
                 },
                 {
                     .SharedMutex = &Content::eventsLock,
@@ -239,7 +226,7 @@ public:
                 "Map, EventUID, EventObjectiveIndex, Type, Flags, TargetCount, TextID, AgentNameTextID, ProgressBarStyle, ExtraInt, ExtraInt2, ExtraGUID, ExtraGUID2, ExtraBlob, Time",
                 [](uint32 Map, uint32 EventUID, uint32 EventObjectiveIndex, uint32 Type, uint32 Flags, uint32 TargetCount, uint32 TextID, uint32 AgentNameTextID, GUID const& ProgressBarStyle, uint32 ExtraInt, uint32 ExtraInt2, GUID const& ExtraGUID, GUID const& ExtraGUID2, std::vector<byte> const& ExtraBlob, uint64 Time)
                 {
-                    Content::events[{ Map, EventUID }].Objectives.emplace(Map, EventUID, EventObjectiveIndex, Type, Flags, TargetCount, TextID, AgentNameTextID, ProgressBarStyle, ExtraInt, ExtraInt2, ExtraGUID, ExtraGUID2, ExtraBlob, Time).first->Time = Time;
+                    Content::events[{ Map, EventUID }].Objectives.emplace(Map, EventUID, EventObjectiveIndex, Type, Flags, TargetCount, TextID, AgentNameTextID, ProgressBarStyle, ExtraInt, ExtraInt2, ExtraGUID, ExtraGUID2, ExtraBlob).first->Encounter = Time;
                 },
                 {
                     .SharedMutex = &Content::eventsLock,

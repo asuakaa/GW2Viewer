@@ -117,6 +117,7 @@
     <ClCompile Include="Data\Encryption\RC4.ixx" />
     <ClCompile Include="Data\Encryption\Text.ixx" />
     <ClCompile Include="Data\External\Database.ixx" />
+    <ClCompile Include="Data\External\Types.ixx" />
     <ClCompile Include="Data\Game.cpp" />
     <ClCompile Include="Data\Game.ixx" />
     <ClCompile Include="Data\Manifest\Asset.ixx" />
@@ -169,6 +170,7 @@
     <ClCompile Include="UI\Controls\Controls-ContentButton.ixx" />
     <ClCompile Include="UI\Controls\Controls-ContentNamespaceButton.ixx" />
     <ClCompile Include="UI\Controls\Controls-CopyButton.ixx" />
+    <ClCompile Include="UI\Controls\Controls-Encounter.ixx" />
     <ClCompile Include="UI\Controls\Controls-FileButton.ixx" />
     <ClCompile Include="UI\Controls\Controls-FilteredComboBox.ixx" />
     <ClCompile Include="UI\Controls\Controls-HexViewer.ixx" />

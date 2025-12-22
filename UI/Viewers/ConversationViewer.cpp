@@ -206,15 +206,7 @@ void ConversationViewer::Draw()
             if (drawEncounterInfo)
             {
                 I::SameLine();
-                if (state.EncounteredTime.time_since_epoch().count())
-                {
-                    if (I::Button(std::format("<c=#{}>{}</c> {}###EncounteredTime", state.Map ? "F" : "2", ICON_FA_GLOBE, Utils::Format::DurationShortColored("{} ago", Time::UntilNowSecs(state.EncounteredTime))).c_str()))
-                    {
-                        // TODO: Open map to { state.Map, state.Position }
-                    }
-                    if (scoped::ItemTooltip())
-                        I::TextUnformatted(std::format("Encountered on: {}", Utils::Format::DateTimeFullLocal(state.EncounteredTime)).c_str());
-                }
+                Controls::Encounter(state.Encounter, { .Button = true });
             }
 
             if (state.SpeakerNameTextID != startingSpeakerNameTextID || drawSpeakerName)
@@ -317,15 +309,7 @@ void ConversationViewer::Draw()
                 if (drawEncounterInfo)
                 {
                     I::SameLine();
-                    if (transition.EncounteredTime.time_since_epoch().count())
-                    {
-                        if (I::Button(std::format("<c=#{}>{}</c> {}###EncounteredTime", transition.Map ? "F" : "2", ICON_FA_GLOBE, Utils::Format::DurationShortColored("{} ago", Time::UntilNowSecs(transition.EncounteredTime))).c_str()))
-                        {
-                            // TODO: Open map to { transition.Map, transition.Position }
-                        }
-                        if (scoped::ItemTooltip())
-                            I::TextUnformatted(std::format("Encountered on: {}", Utils::Format::DateTimeFullLocal(transition.EncounteredTime)).c_str());
-                    }
+                    Controls::Encounter(transition.Encounter, { .Button = true });
                 }
 
                 if (auto const iconFileID = iconInfo[iconToIconInfoIndex[transition.Icon]].FileID)

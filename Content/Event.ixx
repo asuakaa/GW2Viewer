@@ -3,6 +3,7 @@ import GW2Viewer.Common;
 import GW2Viewer.Common.GUID;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Content;
+import GW2Viewer.Data.External.Types;
 import GW2Viewer.Data.Game;
 import GW2Viewer.Utils.Enum;
 import std;
@@ -67,7 +68,7 @@ struct Event
         GUID AudioEffect;
         uint32 A;
 
-        mutable uint64 Time;
+        mutable Data::External::Encounter Encounter;
 
         bool IsDungeonEvent() const { return FlagsClient & ClientFlags::DungeonEvent & ClientFlags::DungeonEvent || FlagsServer & ServerFlags::DungeonEvent; }
         bool IsGroupEvent() const { return FlagsClient & ClientFlags::GroupEvent || FlagsServer & ServerFlags::GroupEvent; }
@@ -94,9 +95,8 @@ struct Event
         GUID ExtraGUID2;
         std::vector<byte> ExtraBlob;
 
-        mutable uint64 Time;
-
         mutable std::vector<std::tuple<uint32, uint32>> Agents;
+        mutable Data::External::Encounter Encounter;
 
         auto GetIdentity() const { return std::tie(Map, EventUID, EventObjectiveIndex, Type, Flags, TargetCount, TextID, AgentNameTextID, ProgressBarStyle, ExtraInt, ExtraInt2, ExtraGUID, ExtraGUID2, ExtraBlob); }
         auto operator<=>(Objective const& other) const { return GetIdentity() <=> other.GetIdentity(); }
@@ -140,9 +140,9 @@ struct Event
     {
         Time::Point result;
         for (auto const& state : States)
-            result = std::max(result, Time::FromTimestampMs(state.Time));
+            result = std::max(result, state.Encounter.Time);
         for (auto const& objective : Objectives)
-            result = std::max(result, Time::FromTimestampMs(objective.Time));
+            result = std::max(result, objective.Encounter.Time);
         return result;
     }
 };
