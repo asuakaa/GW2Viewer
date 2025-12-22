@@ -16,6 +16,7 @@ struct ContentTypeInfo
     int32 NameOffset;
     bool TrackReferences;
     std::vector<ContentObject const*> Objects;
+    std::unordered_map<uint32, ContentObject const*> ObjectsByDataID;
 
     [[nodiscard]] std::wstring GetDisplayName() const;
     [[nodiscard]] TypeInfo& GetTypeInfo() const;

@@ -170,9 +170,9 @@ public:
             if (typeInfo->DataIDOffset < 0)
                 std::terminate();
 
-            for (auto const object : typeInfo->Objects)
-                if (*object->GetDataID() == dataID)
-                    return object;
+            auto itr = typeInfo->ObjectsByDataID.find(dataID);
+            if (itr != typeInfo->ObjectsByDataID.end())
+                return itr->second;
         }
 
         return nullptr;
@@ -471,6 +471,8 @@ private:
                         if (auto const guid = object->GetGUID(); guid && !m_objectsByGUID.emplace(*guid, object).second)
                             std::terminate();
                         typeInfo->Objects.emplace_back(object);
+                        if (auto const dataID = object->GetDataID())
+                            typeInfo->ObjectsByDataID.emplace(*dataID, object);
                         if (root)
                         {
                             root->Entries.emplace_back(object);
