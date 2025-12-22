@@ -126,9 +126,6 @@ void ConversationViewer::Draw()
 
         auto [speaker, speakerStatus] = G::Game.Text.Get(state.SpeakerNameTextID);
         auto [string, status] = G::Game.Text.Get(state.TextID);
-        std::string text = string ? Utils::Encoding::ToUTF8(*string).c_str() : "";
-        Utils::String::ReplaceAll(text, "\r", R"(<c=#F00>\r</c>)");
-        Utils::String::ReplaceAll(text, "\n", R"(<c=#F00>\n</c>)");
 
         bool wikiState = false;
         bool alreadyOpened = !visitedStates.emplace(state.StateID).second;
@@ -221,8 +218,8 @@ void ConversationViewer::Draw()
             I::SameLine();
             I::Text("%s%s%s",
                 drawTextID ? std::format("<c=#CCF>({})</c> ", state.TextID).c_str() : "",
-                drawEncryptionStatus ? GetStatusText(status) : "", 
-                text.c_str());
+                drawEncryptionStatus ? GetStatusText(status) : "",
+                Utils::String::SingleLined(string ? Utils::Encoding::ToUTF8(*string).c_str() : "").c_str());
         }
 
         if (!stateOpen)
@@ -250,9 +247,6 @@ void ConversationViewer::Draw()
             }
 
             auto [string, status] = G::Game.Text.Get(transition.TextID);
-            std::string text = string ? Utils::Encoding::ToUTF8(*string).c_str() : "";
-            Utils::String::ReplaceAll(text, "\r", R"(<c=#F00>\r</c>)");
-            Utils::String::ReplaceAll(text, "\n", R"(<c=#F00>\n</c>)");
 
             bool const transitionOpen = stateOpen && [&]
             {
@@ -325,7 +319,7 @@ void ConversationViewer::Draw()
                 I::Text("%s%s%s",
                     drawTextID ? std::format("<c=#CCF>({})</c> ", transition.TextID).c_str() : "",
                     drawEncryptionStatus ? GetStatusText(status) : "",
-                    text.c_str());
+                    Utils::String::SingleLined(string ? Utils::Encoding::ToUTF8(*string).c_str() : "").c_str());
 
                 if (isScriptedStartState)
                 {

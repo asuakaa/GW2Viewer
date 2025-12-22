@@ -143,15 +143,13 @@ struct Conversation
     std::string StartingStateText() const
     {
         std::string result;
-        for (auto const& state : States | std::views::filter([](auto const& state) { return state.TextID; }))
+        for (auto const& state : States | std::views::filter(&State::TextID))
             if (result.empty() || state.IsStart())
                 if (auto string = G::Game.Text.Get(state.TextID).first)
-                    if (result = Utils::Encoding::ToUTF8(*string), state.IsStart())
+                    if (result = Utils::Encoding::ToUTF8(*string); state.IsStart())
                         break;
 
-        Utils::String::ReplaceAll(result, "\r", R"(<c=#F00>\r</c>)");
-        Utils::String::ReplaceAll(result, "\n", R"(<c=#F00>\n</c>)");
-        return result;
+        return Utils::String::SingleLined(result);
     }
 };
 std::map<uint32, struct Conversation> conversations;

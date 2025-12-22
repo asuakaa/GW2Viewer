@@ -14,6 +14,7 @@ import GW2Viewer.Utils.Encoding;
 import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
 import GW2Viewer.Utils.Sort;
+import GW2Viewer.Utils.String;
 import std;
 #include "Macros.h"
 
@@ -109,8 +110,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
             if (textSearch)
             {
                 std::shared_lock _(Content::conversationsLock);
-                std::wstring const query(std::from_range, Utils::Encoding::FromUTF8(string) | std::views::transform(toupper));
-                data.assign_range(Content::conversations | std::views::keys | std::views::filter([&query](uint32 id)
+                data.assign_range(Content::conversations | std::views::keys | std::views::filter([query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](uint32 id)
                 {
                     auto const& conversation = Content::conversations.at(id);
                     for (auto const& state : conversation.States)

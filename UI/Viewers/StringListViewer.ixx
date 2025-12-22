@@ -162,8 +162,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
                 static std::unordered_map<std::thread::id, std::vector<uint32>> parallelResults;
                 static std::mutex lock;
                 std::ranges::for_each(parallelResults | std::views::values, &std::vector<uint32>::clear);
-                std::wstring const query(std::from_range, Utils::Encoding::FromUTF8(string) | std::views::transform(toupper));
-                std::for_each(std::execution::par_unseq, data.begin(), data.end(), [&query](uint32 stringID)
+                std::for_each(std::execution::par_unseq, data.begin(), data.end(), [query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](uint32 stringID)
                 {
                     thread_local auto& results = []() -> auto&
                     {
@@ -288,10 +287,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
                     }
 
                     I::TableNextColumn();
-                    std::string text = string ? Utils::Encoding::ToUTF8(*string).c_str() : "";
-                    Utils::String::ReplaceAll(text, "\r", R"(<c=#F00>\r</c>)");
-                    Utils::String::ReplaceAll(text, "\n", R"(<c=#F00>\n</c>)");
-                    I::Text("%s%s", GetStatusText(status), text.c_str());
+                    I::Text("%s%s", GetStatusText(status), Utils::String::SingleLined(string ? Utils::Encoding::ToUTF8(*string).c_str() : "").c_str());
 
                     I::TableNextColumn();
                     if (info)

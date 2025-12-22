@@ -14,6 +14,7 @@ import GW2Viewer.Utils.Encoding;
 import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
 import GW2Viewer.Utils.Sort;
+import GW2Viewer.Utils.String;
 import std;
 #include "Macros.h"
 
@@ -137,8 +138,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
             if (textSearch)
             {
                 std::shared_lock _(Content::eventsLock);
-                std::wstring const query(std::from_range, Utils::Encoding::FromUTF8(string) | std::views::transform(toupper));
-                std::erase_if(data, [&query](Content::EventID id)
+                std::erase_if(data, [query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](Content::EventID id)
                 {
                     auto const& event = Content::events.at(id);
                     for (auto const& state : event.States)
@@ -160,7 +160,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                         if (auto const string = G::Game.Text.GetNormalized(objective.AgentNameTextID).first; string && !string->empty() && string->contains(query))
                             return false;
                     }
-                    if (std::wstring const map { std::from_range, event.Map() | std::views::transform(toupper) }; map.contains(query))
+                    if (Utils::String::Uppercased(event.Map()).contains(query))
                         return false;
                     return true;
                 });

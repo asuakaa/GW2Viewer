@@ -4,6 +4,7 @@ import GW2Viewer.Common.FourCC;
 import GW2Viewer.Data.Encryption;
 import GW2Viewer.Data.Encryption.RC4;
 import GW2Viewer.Utils.Async.ProgressBarContext;
+import GW2Viewer.Utils.String;
 import std;
 import magic_enum;
 import <boost/container/static_vector.hpp>;
@@ -125,7 +126,7 @@ private:
                 if (entry->IsEncrypted() && !decryptionKey)
                     return Encrypted;
                 auto string = entry->Get(std::move(decryptionKey));
-                std::wstring normalized(std::from_range, string | std::views::transform(toupper));
+                auto normalized = Utils::String::Uppercased(string);
                 itr = Cache.try_emplace(stringIndex, std::move(string), std::move(normalized), entry->IsEncrypted() ? Encryption::Status::Decrypted : Encryption::Status::Unencrypted).first;
             }
             return itr->second;
