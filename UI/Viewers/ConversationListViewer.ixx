@@ -140,14 +140,8 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
         if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
             UpdateSearch();
         I::SameLine();
-        if (scoped::Disabled(!FilterID))
-        {
-            I::AlignTextToFramePadding(); I::Text(ICON_FA_PLUS_MINUS); I::SameLine();
-            if (I::SetNextItemWidth(-FLT_MIN); I::DragInt("##SearchRange", (int*)&FilterRange, 0.1f, 0, 10000))
-                UpdateSearch();
-            if (I::IsItemHovered())
-                I::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        }
+        if (Controls::SearchFilterRange(FilterID, FilterRange))
+            UpdateSearch();
 
         if (scoped::TableList("Table", 5))
         {
