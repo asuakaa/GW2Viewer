@@ -38,7 +38,7 @@ struct LoadingOperation
     LoadingOperation(std::string_view table) : Table(table) { }
 
     virtual ~LoadingOperation() = default;
-    virtual void Process(sqlite::database& db) = 0;
+    virtual void Process(sqlite::database& db, Utils::Async::ProgressBarContext* progress = nullptr) = 0;
     virtual void PostProcess() = 0;
 
     static auto Make(std::string_view table, std::string_view columns, auto&& handler, Options&& options = { });
@@ -50,8 +50,10 @@ struct LoadingOperationT : LoadingOperation
     std::function<void(Args...)> Handler;
     Options Options;
     std::string Query = std::format("SELECT {}._rowid_, {} FROM {} {} WHERE {}._rowid_ > ? AND ({})", Table, Columns, Table, Options.Joins, Table, Options.Condition);
+    std::string QueryMax = std::format("SELECT MAX({}._rowid_) FROM {}", Table, Table);
     sqlite_int64 MaxRowID = -1;
-    sqlite_int64 LastMaxRowID = -1;
+    sqlite_int64 CurrentRowID = -1;
+    sqlite_int64 LastCurrentRowID = -1;
 
     LoadingOperationT(std::string_view table, std::string_view columns, std::function<void(Args...)>&& handler, LoadingOperation::Options&& options) : LoadingOperation(table), Columns(columns), Handler(std::move(handler)), Options(std::move(options)) { }
 
@@ -61,7 +63,7 @@ struct LoadingOperationT : LoadingOperation
     template<> struct CoerceArgumentType<GUID> { using Type = std::vector<byte>; };
     template<Enumeration Enum> struct CoerceArgumentType<Enum> { using Type = std::underlying_type_t<Enum>; };
 
-    void Process(sqlite::database& db) override
+    void Process(sqlite::database& db, Utils::Async::ProgressBarContext* progress) override
     {
         if (Options.SharedMutex)
             Options.SharedMutex->lock();
@@ -72,18 +74,31 @@ struct LoadingOperationT : LoadingOperation
                 Options.SharedMutex->unlock();
         });
 
-        db << Query << MaxRowID >> [this](sqlite_int64 rowID, typename CoerceArgumentType<std::decay_t<Args>>::Type... args)
+        if (progress)
+        {
+            db << QueryMax >> MaxRowID;
+            progress->Start(Table, MaxRowID);
+        }
+
+        db << Query << CurrentRowID >> [this, progress, processed = 0, interval = std::max<uint32>(1, MaxRowID / 1000), nextUpdate = Time::FrameStart](sqlite_int64 rowID, typename CoerceArgumentType<std::decay_t<Args>>::Type... args) mutable
         {
             Handler(((Args)args)...);
-            MaxRowID = std::max(MaxRowID, rowID);
+            CurrentRowID = std::max(CurrentRowID, rowID);
+            if (progress)
+            {
+                if (!(++processed % interval) || Time::FrameStart >= nextUpdate)
+                {
+                    *progress = CurrentRowID;
+                    nextUpdate = Time::FrameStart + 50ms;
+                }
+            }
         };
-
     }
     void PostProcess() override
     {
-        if (LastMaxRowID != MaxRowID)
+        if (LastCurrentRowID != CurrentRowID)
         {
-            LastMaxRowID = MaxRowID;
+            LastCurrentRowID = CurrentRowID;
             if (Options.PostHandler)
                 G::UI.Defer(std::function(Options.PostHandler));
         }
@@ -105,7 +120,6 @@ public:
         auto updateEventFilter = [] { G::Viewers::Notify(&UI::Viewers::EventListViewer::UpdateFilter); };
 
         using namespace sqlite;
-        progress.Start("Reading string decryption keys");
         static database db(path.u16string(), { .flags = OpenFlags::READONLY });
         static std::unique_ptr<LoadingOperation> operations[]
         {
@@ -257,11 +271,8 @@ public:
             {
                 for (auto&& operation : operations)
                 {
-                    if (progress)
-                        progress->SetDescription(std::format("Loading external DB:\n{}", operation->Table));
-
                     retry:
-                    try { operation->Process(db); }
+                    try { operation->Process(db, progress ? &progress->GetChild() : nullptr); }
                     catch (errors::busy const&)
                     {
                         std::this_thread::sleep_for(1s);
