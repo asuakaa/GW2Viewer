@@ -127,6 +127,8 @@ private:
                     return Encrypted;
                 auto string = entry->Get(std::move(decryptionKey));
                 auto normalized = Utils::String::Uppercased(string);
+                Utils::String::ReplaceAll(normalized, L"\r", LR"(\R)");
+                Utils::String::ReplaceAll(normalized, L"\n", LR"(\N)");
                 itr = Cache.try_emplace(stringIndex, std::move(string), std::move(normalized), entry->IsEncrypted() ? Encryption::Status::Decrypted : Encryption::Status::Unencrypted).first;
             }
             return itr->second;
