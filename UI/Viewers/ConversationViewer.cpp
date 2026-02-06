@@ -198,7 +198,7 @@ void ConversationViewer::Draw()
         });
         if (parentOpen)
         {
-            I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, state.GetCompleteness() / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
+            Controls::CompletionMargin(state.GetCompleteness());
 
             if (drawEncounterInfo)
             {
@@ -241,7 +241,7 @@ void ConversationViewer::Draw()
                 {
                     if (I::TreeNodeEx(&state, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, "<c=#F004>[<c=#F00F>%u</c>] Transition missing</c>", missingTransitionID))
                         I::TreePop();
-                    I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
+                    Controls::CompletionMargin(Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING);
                 }
                 nextExpectedTransitionID = transition.TransitionID + 1;
             }
@@ -298,7 +298,7 @@ void ConversationViewer::Draw()
             }
             if (stateOpen)
             {
-                I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, transition.GetCompleteness() / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
+                Controls::CompletionMargin(transition.GetCompleteness());
 
                 if (drawEncounterInfo)
                 {
@@ -375,7 +375,8 @@ void ConversationViewer::Draw()
                 {
                     if (I::TreeNodeEx(&target.TargetStateID, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, std::format("<c=#{0}4>[<c=#{0}F>{1}</c>] {2}</c>", target.TargetStateID == -1 ? "F80" : "F00", target.TargetStateID, target.TargetStateID == -1 ? "Conversation ended without transition" : "Target state missing").c_str()))
                         I::TreePop();
-                    I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
+                    if (target.TargetStateID != -1)
+                        Controls::CompletionMargin(Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING);
                 }
             }
             if (wikiWrite && transitionOpen && transition.Targets.empty())
@@ -400,7 +401,7 @@ void ConversationViewer::Draw()
         {
             if (I::TreeNodeEx(&state, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, "<c=#F004>[<c=#F00F>%u</c>] State missing</c>", missingStateID))
                 I::TreePop();
-            I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
+            Controls::CompletionMargin(Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING);
         }
         nextExpectedStateID = state.StateID + 1;
 

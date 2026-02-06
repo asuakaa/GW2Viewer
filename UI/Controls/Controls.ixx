@@ -1,5 +1,6 @@
 export module GW2Viewer.UI.Controls;
 export import :AsyncProgressBar;
+export import :CompletionMargin;
 export import :ContentButton;
 export import :ContentNamespaceButton;
 export import :CopyButton;
