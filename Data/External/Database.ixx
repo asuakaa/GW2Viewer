@@ -7,6 +7,7 @@ import GW2Viewer.Common.GUID;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Content.Conversation;
 import GW2Viewer.Content.Event;
+import GW2Viewer.Content.MapCinematic;
 import GW2Viewer.Content.Vendor;
 import GW2Viewer.Data.Encryption.Asset;
 import GW2Viewer.Data.Game;
@@ -14,6 +15,7 @@ import GW2Viewer.UI.Manager;
 import GW2Viewer.UI.Viewers.ConversationListViewer;
 import GW2Viewer.UI.Viewers.EventListViewer;
 import GW2Viewer.UI.Viewers.ListViewer;
+import GW2Viewer.UI.Viewers.MapCinematicListViewer;
 import GW2Viewer.UI.Viewers.StringListViewer;
 import GW2Viewer.UI.Viewers.VendorListViewer;
 import GW2Viewer.User.Config;
@@ -121,6 +123,7 @@ public:
         auto updateConversationSearch = [] { G::Viewers::Notify(&UI::Viewers::ConversationListViewer::UpdateSearch); };
         auto updateEventFilter = [] { G::Viewers::Notify(&UI::Viewers::EventListViewer::UpdateFilter); };
         auto updateVendorSearch = [] { G::Viewers::Notify(&UI::Viewers::VendorListViewer::UpdateSearch); };
+        auto updateMapCinematicSearch = [] { G::Viewers::Notify(&UI::Viewers::MapCinematicListViewer::UpdateSearch); };
 
         using namespace sqlite;
         static database db(path.u16string(), { .flags = OpenFlags::READONLY });
@@ -280,6 +283,39 @@ public:
                 {
                     .SharedMutex = &Content::vendorsLock,
                     .PostHandler = updateVendorSearch,
+                }),
+            LoadingOperation::Make("MapCinematics",
+                "Hash, UID, Flags, Groups, Objects, Sectors, Time",
+                [](uint64 Hash, uint32 UID, uint32 Flags, std::vector<byte> const& Groups, std::vector<byte> const& Objects, std::vector<byte> const& Sectors, uint64 Time)
+                {
+                    using Group = Content::MapCinematic::Group;
+                    using Object = Content::MapCinematic::Object;
+                    using Sector = Content::MapCinematic::Sector;
+                    assert(!(Groups.size() % sizeof(Group)));
+                    assert(!(Objects.size() % sizeof(Object)));
+                    assert(!(Sectors.size() % sizeof(Sector)));
+                    auto& mapCinematic = Content::mapCinematics[Hash];
+                    mapCinematic.UID = UID;
+                    mapCinematic.Flags = Flags;
+                    mapCinematic.Groups = { (Group const*)Groups.data(), (Group const*)(Groups.data() + Groups.size()) };
+                    mapCinematic.Objects = { (Object const*)Objects.data(), (Object const*)(Objects.data() + Objects.size()) };
+                    mapCinematic.Sectors = { (Sector const*)Sectors.data(), (Sector const*)(Sectors.data() + Sectors.size()) };
+                    mapCinematic.Encounter = Time;
+                },
+                {
+                    .SharedMutex = &Content::mapCinematicsLock,
+                    .PostHandler = updateMapCinematicSearch,
+                }),
+            LoadingOperation::Make("AgentMapCinematic",
+                "Time, MapSession, AgentID, AgentX, AgentY, AgentZ, AgentFacing, MapCinematicHash, Session, Map, ClientX, ClientY, ClientZ, ClientFacing",
+                [](uint64 Time, uint32 MapSession, uint32 AgentID, float AgentX, float AgentY, float AgentZ, float AgentFacing, uint64 MapCinematicHash, uint32 Session, uint32 Map, float ClientX, float ClientY, float ClientZ, float ClientFacing)
+                {
+                    auto& mapCinematic = Content::mapCinematics[MapCinematicHash];
+                    mapCinematic.Encounter = { Time, { AgentX, AgentY, AgentZ, AgentFacing }, Map, MapSession, Session };
+                },
+                {
+                    .SharedMutex = &Content::mapCinematicsLock,
+                    .PostHandler = updateMapCinematicSearch,
                 }),
             LoadingOperation::Make("Events",
                 "Map, UID, TitleTextID, TitleParameterTextID1, TitleParameterTextID2, TitleParameterTextID3, TitleParameterTextID4, TitleParameterTextID5, TitleParameterTextID6, DescriptionTextID, FileIconID, FlagsClient, FlagsServer, Level, MetaTextTextID, AudioEffect, A, Time",

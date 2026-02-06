@@ -7,6 +7,19 @@ import std;
 export namespace GW2Viewer::Data::External
 {
 
+template<typename T>
+struct DBBlobElementSpan
+{
+    uint16 StartIndex;
+    uint16 Count;
+
+    std::span<T const> GetSpan(std::span<T const> full) const
+    {
+        return full.subspan(StartIndex, Count);
+    }
+};
+static_assert(sizeof(DBBlobElementSpan<void>) == 4);
+
 struct Encounter
 {
     Time::Point Time;
