@@ -8,6 +8,7 @@ import GW2Viewer.Common.Time;
 import GW2Viewer.Content.Conversation;
 import GW2Viewer.Content.Event;
 import GW2Viewer.Content.MapCinematic;
+import GW2Viewer.Content.MysticForgeEntry;
 import GW2Viewer.Content.Vendor;
 import GW2Viewer.Data.Encryption.Asset;
 import GW2Viewer.Data.Game;
@@ -16,6 +17,7 @@ import GW2Viewer.UI.Viewers.ConversationListViewer;
 import GW2Viewer.UI.Viewers.EventListViewer;
 import GW2Viewer.UI.Viewers.ListViewer;
 import GW2Viewer.UI.Viewers.MapCinematicListViewer;
+import GW2Viewer.UI.Viewers.MysticForgeEntryListViewer;
 import GW2Viewer.UI.Viewers.StringListViewer;
 import GW2Viewer.UI.Viewers.VendorListViewer;
 import GW2Viewer.User.Config;
@@ -316,6 +318,22 @@ public:
                 {
                     .SharedMutex = &Content::mapCinematicsLock,
                     .PostHandler = updateMapCinematicSearch,
+                }),
+            LoadingOperation::Make("MysticForgeEntries",
+                "GameBuild, UID, GameMode, Ingredients, Time",
+                [](uint32 GameBuild, uint32 UID, uint32 GameMode, std::vector<byte> const& Ingredients, uint64 Time)
+                {
+                    assert(Ingredients.size() == sizeof(Content::MysticForgeEntry::Ingredients));
+                    auto& mysticForgeEntry = Content::mysticForgeEntries[{ GameBuild, UID }];
+                    mysticForgeEntry.GameMode = GameMode;
+                    for (auto&& [index, stored] : mysticForgeEntry.Ingredients | std::views::enumerate)
+                        if (stored.IngredientType == Content::MYSTIC_FORGE_INGREDIENT_TYPES)
+                            stored = ((struct Content::MysticForgeEntry::Ingredient const*)Ingredients.data())[index];
+                    mysticForgeEntry.Encounter = Time;
+                },
+                {
+                    .SharedMutex = &Content::mysticForgeEntriesLock,
+                    .PostHandler = [] { G::Viewers::Notify(&UI::Viewers::MysticForgeEntryListViewer::UpdateSearch); },
                 }),
             LoadingOperation::Make("Events",
                 "Map, UID, TitleTextID, TitleParameterTextID1, TitleParameterTextID2, TitleParameterTextID3, TitleParameterTextID4, TitleParameterTextID5, TitleParameterTextID6, DescriptionTextID, FileIconID, FlagsClient, FlagsServer, Level, MetaTextTextID, AudioEffect, A, Time",
