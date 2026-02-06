@@ -239,7 +239,7 @@ void ConversationViewer::Draw()
             {
                 for (auto missingTransitionID = nextExpectedTransitionID; missingTransitionID < transition.TransitionID; ++missingTransitionID)
                 {
-                    if (I::TreeNodeEx(&state, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, "<c=#F004>[<c=#F00F>%u</c>] Transition missing</c>", missingTransitionID))
+                    if (I::TreeNodeEx(std::format("Missing Transition {}", missingTransitionID).c_str(), ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, "<c=#F004>[<c=#F00F>%u</c>] Transition missing</c>", missingTransitionID))
                         I::TreePop();
                     Controls::CompletionMargin(Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING);
                 }
@@ -399,7 +399,7 @@ void ConversationViewer::Draw()
     {
         for (auto missingStateID = nextExpectedStateID; missingStateID < state.StateID; ++missingStateID)
         {
-            if (I::TreeNodeEx(&state, ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, "<c=#F004>[<c=#F00F>%u</c>] State missing</c>", missingStateID))
+            if (I::TreeNodeEx(std::format("Missing State {}", missingStateID).c_str(), ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf, "<c=#F004>[<c=#F00F>%u</c>] State missing</c>", missingStateID))
                 I::TreePop();
             Controls::CompletionMargin(Content::Conversation::COMPLETENESS_PRESUMABLY_MISSING);
         }
