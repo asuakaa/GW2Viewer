@@ -139,6 +139,7 @@
     <ClCompile Include="Data\Texture\Texture.cpp" />
     <ClCompile Include="Data\Texture\Texture.ixx" />
     <ClCompile Include="Data\Text\Format.ixx" />
+    <ClCompile Include="Data\Text\Hash.ixx" />
     <ClCompile Include="Data\Text\Manager.cpp" />
     <ClCompile Include="Data\Text\Manager.ixx" />
     <ClCompile Include="Data\Voice\Manager.cpp" />
