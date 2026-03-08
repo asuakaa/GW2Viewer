@@ -61,8 +61,8 @@ struct ResultNumberLiteral : Result<Range>
             return false;
         if (auto rest = std::string_view(this->Rest());
             rest == "u" || rest == "U" ||
-            rest == "ul" || rest == "UL" ||
-            rest == "ull" || rest == "ULL" ||
+            rest == "ul" || rest == "UL" || rest == "uL" ||
+            rest == "ull" || rest == "ULL" || rest == "uLL" ||
             rest == "l" || rest == "L" ||
             rest == "ll" || rest == "LL" ||
             rest == "i64" || rest == "I64" ||

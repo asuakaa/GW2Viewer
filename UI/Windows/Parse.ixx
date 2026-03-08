@@ -4,7 +4,11 @@ import GW2Viewer.Common.GUID;
 import GW2Viewer.Common.Token32;
 import GW2Viewer.Common.Token64;
 import GW2Viewer.Data.Content.Mangling;
+import GW2Viewer.Data.Game;
 import GW2Viewer.Data.Pack;
+import GW2Viewer.Data.Text.Format;
+import GW2Viewer.Data.Text.Hash;
+import GW2Viewer.UI.Controls;
 import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Windows.Window;
 import GW2Viewer.Utils.ConstString;
@@ -22,6 +26,96 @@ struct Parse : Window
     std::string Title() override { return "Parse"; }
     void Draw() override
     {
+        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
+        if (scoped::Table("Conversions", 3, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Hideable))
+        {
+            I::TableSetupColumn("Left");
+            I::TableSetupColumn("Direction", ImGuiTableColumnFlags_WidthFixed);
+            I::TableSetupColumn("Right");
+            I::TableSetColumnEnabled(2, !IsVerticalLayout());
+
+            Conversion<"uint64", "hex", uint64, hex<uint64>>({
+                .ConvertLR = [](uint64 const& in, hex<uint64>& out) { out = in; },
+                .ConvertRL = [](hex<uint64> const& in, uint64& out) { out = in; },
+            });
+            Conversion<"uint64", "Token32", uint32, Token32>({
+                .ConvertLR = [](uint32 const& in, Token32& out) { out = *(Token32*)&in; },
+                .ConvertRL = [](Token32 const& in, uint32& out) { out = *(uint32*)&in; },
+            });
+            Conversion<"uint64", "Token64", uint64, Token64>({
+                .ConvertLR = [](uint64 const& in, Token64& out) { out = *(Token64*)&in; },
+                .ConvertRL = [](Token64 const& in, uint64& out) { out = *(uint64*)&in; },
+            });
+            Conversion<"Filename", "File ID", uint64, Data::Pack::FileReference>({
+                .ConvertLR = [](uint64 const& in, Data::Pack::FileReference& out) { out = *(Data::Pack::FileReference*)&in; },
+                .ConvertRL = [](Data::Pack::FileReference const& in, uint64& out) { out = 0; memcpy(&out, &in, sizeof(in)); },
+                .DrawR = [](Data::Pack::FileReference const& file) { Controls::FileButton(file.GetFileID()); },
+            });
+
+            Separator();
+            Conversion<"hex[16]", "GUID", std::array<byte, 16>, GUID>({
+                .ConvertLR = [](std::array<byte, 16> const& in, GUID& out) { out = *(GUID const*)in.data(); },
+                .ConvertRL = [](GUID const& in, std::array<byte, 16>& out) { out = *(std::array<byte, 16> const*)&in; },
+                .DrawR = [](GUID const& guid) { Controls::ContentButton(G::Game.Content.GetByGUID(guid), nullptr); },
+            });
+            Conversion<"uint32[4]", "GUID", std::array<uint32, 4>, GUID>({
+                .ConvertLR = [](std::array<uint32, 4> const& in, GUID& out) { out = *(GUID const*)in.data(); },
+                .ConvertRL = [](GUID const& in, std::array<uint32, 4>& out) { out = *(std::array<uint32, 4> const*)&in; },
+                .DrawR = [](GUID const& guid) { Controls::ContentButton(G::Game.Content.GetByGUID(guid), nullptr); },
+            });
+            Conversion<"uint64[2]", "GUID", std::array<uint64, 2>, GUID>({
+                .ConvertLR = [](std::array<uint64, 2> const& in, GUID& out) { out = *(GUID const*)in.data(); },
+                .ConvertRL = [](GUID const& in, std::array<uint64, 2>& out) { out = *(std::array<uint64, 2> const*)&in; },
+                .DrawR = [](GUID const& guid) { Controls::ContentButton(G::Game.Content.GetByGUID(guid), nullptr); },
+            });
+
+            Separator();
+            Conversion<"wstring", "Mangled Content Name", std::wstring, std::wstring>({
+                .ConvertLR = [](std::wstring const& in, std::wstring& out) { out = Data::Content::MangleFullName(in); },
+            });
+            Conversion<"wstring", "Format String", std::wstring, std::wstring>({
+                .ConvertLR = [](std::wstring const& in, std::wstring& out) { out = Data::Text::FormatStringEmpty(in); },
+            });
+
+            Separator();
+            Conversion<"string", "IStrHash<char>", std::string, hex<uint32>>({
+                .ConvertLR = [](std::string const& in, hex<uint32>& out) { out = Data::Text::IStrHash(in); },
+                .ConvertRL = [](hex<uint32> const& in, std::string& out) { BruteforceStringHash.Run<char, &Data::Text::IStrHash>(in.Value, out); },
+            });
+            Conversion<"string", "IStrHashI<char>", std::string, hex<uint32>>({
+                .ConvertLR = [](std::string const& in, hex<uint32>& out) { out = Data::Text::IStrHashI(in); },
+                .ConvertRL = [](hex<uint32> const& in, std::string& out) { BruteforceStringHash.Run<char, &Data::Text::IStrHashI>(in.Value, out); },
+            });
+            Conversion<"wstring", "IStrHash<wchar_t>", std::wstring, hex<uint32>>({
+                .ConvertLR = [](std::wstring const& in, hex<uint32>& out) { out = Data::Text::IStrHash(in); },
+                .ConvertRL = [](hex<uint32> const& in, std::wstring& out) { BruteforceStringHash.Run<wchar_t, &Data::Text::IStrHash>(in.Value, out); },
+            });
+            Conversion<"wstring", "IStrHashI<wchar_t>", std::wstring, hex<uint32>>({
+                .ConvertLR = [](std::wstring const& in, hex<uint32>& out) { out = Data::Text::IStrHashI(in); },
+                .ConvertRL = [](hex<uint32> const& in, std::wstring& out) { BruteforceStringHash.Run<wchar_t, &Data::Text::IStrHashI>(in.Value, out); },
+                .DrawL = [](std::wstring const&) { I::AlignTextToFramePadding(); I::RightAlignedText("<c=#4>Bruteforce alphabet:</c>"); },
+                .DrawR = [](hex<uint32> const&) { I::SetNextItemWidth(-FLT_MIN); I::InputText("##Bruteforce", &BruteforceStringHash.Alphabet); },
+            });
+        }
+    }
+
+    template<typename L, typename R>
+    struct ConversionOptions
+    {
+        void(*ConvertLR)(L const& in, R& out) = nullptr;
+        void(*ConvertRL)(R const& in, L& out) = nullptr;
+        void(*DrawL)(L const& l) = nullptr;
+        void(*DrawR)(R const& r) = nullptr;
+    };
+
+    static void Separator()
+    {
+        I::Separator();
+    }
+
+    template<ConstString LabelLeft, ConstString LabelRight, typename L, typename R>
+    static void Conversion(ConversionOptions<L, R> const& options = {})
+    {
         //static constexpr auto success = [](auto const& result) { return result && result.empty(); };
 
         static auto parse = Utils::Visitor::Overloaded
@@ -29,6 +123,11 @@ struct Parse : Window
             [](std::string_view in, std::string& out)
             {
                 out = in;
+                return true;
+            },
+            [](std::string_view in, std::wstring& out)
+            {
+                out = Utils::Encoding::FromUTF8(in);
                 return true;
             },
             [](std::string_view in, GUID& out)
@@ -59,15 +158,24 @@ struct Parse : Window
             },
             [](std::string_view in, std::array<byte, 16>& out)
             {
-                return Utils::Scan::Into(in, "{:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x} {:x}", out[0], out[1], out[2], out[3], out[4], out[5], out[6], out[7], out[8], out[9], out[10], out[11], out[12], out[13], out[14], out[15]);
+                for (auto&& [i, o] : std::views::zip(in | std::views::split(" "sv), out))
+                    if (!Utils::Scan::NumberLiteral(std::string_view(i), "{:x}", o))
+                        return false;
+                return true;
             },
             [](std::string_view in, std::array<uint32, 4>& out)
             {
-                return Utils::Scan::Into(in, "{} {} {} {}", out[0], out[1], out[2], out[3]) || Utils::Scan::Into(in, "0x{:x} 0x{:x} 0x{:x} 0x{:x}", out[0], out[1], out[2], out[3]);
+                for (auto&& [i, o] : std::views::zip(in | std::views::split(" "sv), out))
+                    if (!Utils::Scan::NumberLiteral(std::string_view(i), "{}", o) && !Utils::Scan::NumberLiteral(std::string_view(i), "{:x}", o))
+                        return false;
+                return true;
             },
             [](std::string_view in, std::array<uint64, 2>& out)
             {
-                return Utils::Scan::Into(in, "{} {}", out[0], out[1]) || Utils::Scan::Into(in, "0x{:x} 0x{:x}", out[0], out[1]);
+                for (auto&& [i, o] : std::views::zip(in | std::views::split(" "sv), out))
+                    if (!Utils::Scan::NumberLiteral(std::string_view(i), "{}", o) && !Utils::Scan::NumberLiteral(std::string_view(i), "{:x}", o))
+                        return false;
+                return true;
             },
             []<std::integral T>(std::string_view in, T& out)
             {
@@ -93,18 +201,20 @@ struct Parse : Window
                     if (type(byte())) return true;
                     if (type(uint16())) return true;
                 }
-                else*/ if (Utils::Scan::Into(in, "0x{:x}", out))
+                */
+                if (Utils::Scan::NumberLiteral(in, "{}", out))
                     return true;
-                else if (Utils::Scan::Into(in, "{}", out))
+                if (Utils::Scan::NumberLiteral(in, "{:x}", out))
                     return true;
-
                 return false;
             },
+            []<std::integral T>(std::string_view in, hex<T>& out) { return Utils::Scan::NumberLiteral(in, "{:x}", out.Value); },
             [](std::string_view in, auto& out) { return false; }
         };
         static auto print = Utils::Visitor::Overloaded
         {
             []<std::integral T>(T const& in) { return std::format("{}", in); },
+            []<std::integral T>(hex<T> const& in) { return std::format("{:X}", in.Value); },
             [](GUID const& in) { return std::format("{}", in); },
             [](Token32 const& in) { return std::format("{}", in.GetString().data()); },
             [](Token64 const& in) { return std::format("{}", in.GetString().data()); },
@@ -115,53 +225,108 @@ struct Parse : Window
             [](std::string_view const& in) { return in; },
             [](std::wstring_view const& in) { return Utils::Encoding::ToUTF8(in); },
         };
-        static auto conversion = []<ConstString Label, typename L, typename R>(void(*convertLR)(L const& in, R& out), void(*convertRL)(R const& in, L& out) = nullptr)
-        {
-            static std::string inputL, inputR;
-            static L l { };
-            static R r { };
+        static std::string inputL, inputR;
+        static L l { };
+        static R r { };
+        static bool successL = false, successR = false;
 
+        bool const vertical = IsVerticalLayout();
+
+        if (scoped::WithID(LabelLeft.str))
+        if (scoped::WithID(LabelRight.str))
+        {
             I::TableNextRow();
             I::TableNextColumn();
-            I::AlignTextToFramePadding();
-            I::TextUnformatted(Label.str);
-
-            if (scoped::WithID(Label.str))
+            I::SetNextItemWidth(-FLT_MIN);
+            if (scoped::WithColorVar(ImGuiCol_Text, I::GetColorU32(ImGuiCol_Text, successL ? 1.0f : 0.5f)))
+            if (I::InputTextWithHint("##L", LabelLeft.str, &inputL) && (successL = true, successR = parse(inputL, l)))
             {
-                I::TableNextColumn();
-                I::SetNextItemWidth(-FLT_MIN);
-                if (I::InputText("##L", &inputL) && parse(inputL, l))
-                {
-                    convertLR(l, r);
-                    inputR = print(r);
-                }
-
-                I::TableNextColumn();
-                I::SetNextItemWidth(-FLT_MIN);
-                if (I::InputText("##R", &inputR, convertRL ? 0 : ImGuiInputTextFlags_ReadOnly) && parse(inputR, r) && convertRL)
-                {
-                    convertRL(r, l);
-                    inputL = print(l);
-                }
+                options.ConvertLR(l, r);
+                inputR = print(r);
             }
-        };
-        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
-        if (scoped::Table("Conversions", 3))
-        {
-            I::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed);
-            I::TableSetupColumn("Left");
-            I::TableSetupColumn("Right");
+            I::SetItemTooltip(LabelLeft.str);
 
-            conversion.operator()<"uint64", uint64, uint64>([](uint64 const& in, uint64& out) { out = in; }, [](uint64  const&in, uint64& out) { out = in; });
-            conversion.operator()<"Token32", uint32, Token32>([](uint32 const& in, Token32& out) { out = *(Token32*)&in; }, [](Token32 const& in, uint32& out) { out = *(uint32*)&in; });
-            conversion.operator()<"Token64", uint64, Token64>([](uint64 const& in, Token64& out) { out = *(Token64*)&in; }, [](Token64 const& in, uint64& out) { out = *(uint64*)&in; });
-            conversion.operator()<"FileReference", uint64, Data::Pack::FileReference>([](uint64 const& in, Data::Pack::FileReference& out) { out = *(Data::Pack::FileReference*)&in; }, [](Data::Pack::FileReference const& in, uint64& out) { out = 0; memcpy(&out, &in, sizeof(in)); });
-            conversion.operator()<"Mangle Content Name", std::string, std::wstring>([](std::string const& in, std::wstring& out) { out = Data::Content::MangleFullName(Utils::Encoding::FromUTF8(in)); });
-            conversion.operator()<"hex[16]<->GUID", std::array<byte, 16>, GUID>([](std::array<byte, 16> const& in, GUID& out) { out = *(GUID const*)in.data(); }, [](GUID const& in, std::array<byte, 16>& out) { out = *(std::array<byte, 16> const*)&in; });
-            conversion.operator()<"uint32[4]<->GUID", std::array<uint32, 4>, GUID>([](std::array<uint32, 4> const& in, GUID& out) { out = *(GUID const*)in.data(); }, [](GUID const& in, std::array<uint32, 4>& out) { out = *(std::array<uint32, 4> const*)&in; });
-            conversion.operator()<"uint64[2]<->GUID", std::array<uint64, 2>, GUID>([](std::array<uint64, 2> const& in, GUID& out) { out = *(GUID const*)in.data(); }, [](GUID const& in, std::array<uint64, 2>& out) { out = *(std::array<uint64, 2> const*)&in; });
+            I::TableNextColumn();
+            I::AlignTextToFramePadding();
+            I::TextUnformatted(options.ConvertLR && options.ConvertRL ? ICON_FA_ARROWS_LEFT_RIGHT : options.ConvertLR ? ICON_FA_RIGHT_LONG : options.ConvertRL ? ICON_FA_LEFT_LONG : "");
+
+            if (vertical)
+                I::TableNextRow();
+
+            I::TableNextColumn();
+            I::SetNextItemWidth(-FLT_MIN);
+            if (scoped::WithColorVar(ImGuiCol_Text, I::GetColorU32(ImGuiCol_Text, successR ? 1.0f : 0.5f)))
+            if (I::InputTextWithHint("##R", LabelRight.str, &inputR, options.ConvertRL ? 0 : ImGuiInputTextFlags_ReadOnly) && (successR = true, successL = parse(inputR, r)) && options.ConvertRL)
+            {
+                options.ConvertRL(r, l);
+                inputL = print(l);
+            }
+            I::SetItemTooltip(LabelRight.str);
+
+            if (options.DrawL || options.DrawR)
+            {
+                I::TableNextRow();
+                I::TableNextColumn(); if (options.DrawL) options.DrawL(l);
+                I::TableNextColumn();
+                if (vertical)
+                    I::TableNextRow();
+                I::TableNextColumn(); if (options.DrawR) options.DrawR(r);
+            }
+
+            if (vertical)
+                I::Separator();
         }
     }
+
+private:
+    template<typename T>
+    struct hex
+    {
+        T Value;
+
+        hex() : Value() { }
+        hex(T const& value) : Value(value) { }
+        operator T() const { return Value; }
+        hex& operator=(T const& value) { Value = value; return *this; }
+    };
+
+    static bool IsVerticalLayout() { auto const size = I::GetWindowSize(); return size.y > size.x && size.x <= 400; }
+
+    static inline struct
+    {
+        std::string Alphabet = "abcdefghijklmnopqrstuvwxyz\"-:";
+        uint32 MaxLength = 6;
+
+        template<typename Ch, uint32(&Hasher)(std::basic_string_view<Ch>)>
+        void Run(uint32 hash, std::basic_string<Ch>& out)
+        {
+            out.clear();
+            auto const alphabet = Alphabet;
+            auto const maxLength = MaxLength;
+            std::mutex mutex;
+            std::for_each(std::execution::par_unseq, Alphabet.begin(), Alphabet.end(), [&, hash, maxLength](Ch firstChar)
+            {
+                std::array<Ch, 32> str { };
+                str[0] = firstChar;
+                auto bruteforce = [&, hash, maxLength](int i, char c, auto& bruteforce) -> void
+                {
+                    str[i] = c;
+                    if (std::basic_string_view<Ch> view(str.data(), i + 1); Hasher(view) == hash)
+                    {
+                        std::scoped_lock _(mutex);
+                        if (!out.empty())
+                            out += ConstString(" OR ").get<Ch>();
+                        out += view;
+                    }
+
+                    if (i + 1 < MaxLength)
+                        for (auto const next : Alphabet)
+                            bruteforce(i + 1, next, bruteforce);
+                };
+                bruteforce(0, firstChar, bruteforce);
+            });
+        }
+    } BruteforceStringHash;
 };
 
 }
