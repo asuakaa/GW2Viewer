@@ -6,9 +6,11 @@ import GW2Viewer.Common.Token32;
 import GW2Viewer.Common.Token64;
 import GW2Viewer.Data.Encryption;
 import GW2Viewer.Data.Game;
+import GW2Viewer.Data.Map.DisplaySet;
 import GW2Viewer.UI.Controls;
 import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Viewers.FileViewer;
+import GW2Viewer.UI.Viewers.MapLayoutViewer;
 import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Encoding;
 import GW2Viewer.Utils.String;
@@ -246,14 +248,41 @@ template<typename T, size_t N> void Point<T, N>::Draw(Context const& context) co
             I::InputTextReadOnly(std::format("##Input{}", index).c_str(), std::format("{}", value));
     }
 
+    std::optional<ImVec2i> continentCoords;
+    if constexpr (std::is_same_v<T, int>)
+    {
+        if constexpr (N == 2)
+            continentCoords = context.Data<ImVec2i>();
+    }
+    std::optional<ImVec4> mapCoords;
+    if constexpr (std::is_same_v<T, float>)
+    {
+        if constexpr (N == 2)
+            mapCoords.emplace(context.Data<ImVec2>().x, context.Data<ImVec2>().y, 0, 0);
+        else if constexpr (N == 3)
+            mapCoords.emplace(context.Data<ImVec4>().x, context.Data<ImVec4>().y, context.Data<ImVec4>().z, 0);
+        else if constexpr (N == 4)
+            mapCoords.emplace(context.Data<ImVec4>());
+    }
+
     I::SameLine(0, 0);
-    if (I::Button(ICON_FA_GLOBE))
-        ; // TOOD: Open world map to world-space coods
-    if (auto const map = context.Content.GetMap(); map && map != &context.Content)
+    I::Button(ICON_FA_GLOBE);
+    if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+    {
+        if (continentCoords)
+            UI::Viewers::MapLayoutViewer::Open(Map::DisplaySet().Add(*continentCoords), { .MouseButton = button });
+        else if (mapCoords)
+            UI::Viewers::MapLayoutViewer::Open(Map::DisplaySet().Add(ImVec2(mapCoords->x, mapCoords->y)), { .MouseButton = button });
+    }
+    I::SetItemTooltip("Open World Map to continent-space coordinates");
+
+    if (auto const map = context.Content.GetMap(); map && map != &context.Content && mapCoords)
     {
         I::SameLine(0, 0);
-        if (I::Button(std::format(ICON_FA_LOCATION_DOT " <c=#4>in</c> <c=#8>{}</c> {}", map->Type->GetDisplayName(), map->GetDisplayName()).c_str()))
-            ; // TODO: Open world map to map-space coords
+        I::Button(std::format(ICON_FA_LOCATION_DOT " <c=#4>in</c> <c=#8>{}</c> {}", map->Type->GetDisplayName(), map->GetDisplayName()).c_str());
+        if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+            UI::Viewers::MapLayoutViewer::Open(Map::DisplaySet().Add(*map, *mapCoords), { .MouseButton = button });
+        I::SetItemTooltip("Open World Map to map-space coordinates");
     }
 }
 

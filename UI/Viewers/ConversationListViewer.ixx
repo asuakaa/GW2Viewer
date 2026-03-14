@@ -177,6 +177,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
                     I::TableNextRow();
 
                     I::TableNextColumn();
+                    I::SetNextItemAllowOverlap();
                     I::Selectable(std::format("  <c=#4>{}</c>", conversationID).c_str(), currentViewer && currentViewer->ConversationID == conversationID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
 
                     Controls::CompletionMargin(conversation.GetCompleteness());

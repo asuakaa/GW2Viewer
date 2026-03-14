@@ -126,6 +126,8 @@
     <ClCompile Include="Data\Manifest\Asset.ixx" />
     <ClCompile Include="Data\Manifest\Manager.cpp" />
     <ClCompile Include="Data\Manifest\Manager.ixx" />
+    <ClCompile Include="Data\Map\DisplaySet.ixx" />
+    <ClCompile Include="Data\Map\MapLayout.ixx" />
     <ClCompile Include="Data\Pack\Manager.cpp" />
     <ClCompile Include="Data\Pack\Manager.ixx" />
     <ClCompile Include="Data\Pack\Pack.ixx" />

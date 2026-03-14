@@ -356,14 +356,6 @@ void Manager::Update()
     G::Tasks::StartupLoading.Run();
 }
 
-void Manager::OpenWorldMap(bool newTab)
-{
-    Defer([=]
-    {
-        m_viewers.emplace_back(new Viewers::MapLayoutViewer(m_nextViewerID++, newTab));
-    });
-}
-
 std::string Manager::MakeDataLink(byte type, uint32 id)
 {
     switch (type)

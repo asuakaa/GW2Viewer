@@ -1,13 +1,16 @@
 export module GW2Viewer.UI.Controls:Encounter;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Data.External.Types;
+import GW2Viewer.Data.Map.DisplaySet;
 import GW2Viewer.UI.ImGui;
+import GW2Viewer.UI.Viewers.Viewer;
 import GW2Viewer.Utils.Format;
 import std;
 #include "Macros.h"
 
 export namespace GW2Viewer::UI::Controls
 {
+void OpenMapLayout(Data::Map::DisplaySet const& set, Viewers::OpenViewerOptions const& options);
 
 struct EncounterOptions
 {
@@ -32,13 +35,17 @@ bool Encounter(Data::External::Encounter const& encounter, EncounterOptions cons
     else
         result = I::Selectable(text.c_str());
 
+    if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+    {
+        if (encounter.Map)
+        {
+            OpenMapLayout(Data::Map::DisplaySet().Add(encounter), { .MouseButton = button });
+            result = true;
+        }
+    }
+
     if (scoped::ItemTooltip())
         I::TextUnformatted(std::format("{}: {}", options.TimeText, Utils::Format::DateTimeFullLocal(encounter.Time)).c_str());
-
-    if (result)
-    {
-        // TODO: Open map to { Vendor.Map, Vendor.Position }
-    }
 
     return result;
 }

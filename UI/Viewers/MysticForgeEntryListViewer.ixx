@@ -170,6 +170,7 @@ struct MysticForgeEntryListViewer : ListViewer<MysticForgeEntryListViewer, { ICO
                     I::TableNextRow();
 
                     I::TableNextColumn();
+                    I::SetNextItemAllowOverlap();
                     I::Selectable(std::format("  <c=#8>{}</c>", id.GameBuild).c_str(), currentViewer && currentViewer->MysticForgeEntryID == id ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
 
                     Controls::CompletionMargin(mysticForgeEntry.GetCompleteness());

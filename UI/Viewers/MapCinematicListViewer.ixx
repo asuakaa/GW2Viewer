@@ -172,6 +172,7 @@ struct MapCinematicListViewer : ListViewer<MapCinematicListViewer, { ICON_FA_CRO
                     I::TableNextRow();
 
                     I::TableNextColumn();
+                    I::SetNextItemAllowOverlap();
                     I::Selectable(std::format("<c=#4>{}</c>", mapCinematicHash).c_str(), currentViewer && currentViewer->MapCinematicHash == mapCinematicHash ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
 
                     if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))

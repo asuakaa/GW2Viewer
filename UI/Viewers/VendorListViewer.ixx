@@ -171,6 +171,7 @@ struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors"
                     I::TableNextRow();
 
                     I::TableNextColumn();
+                    I::SetNextItemAllowOverlap();
                     I::Selectable(std::format("  <c=#4>{}</c>", vendorHash).c_str(), currentViewer && currentViewer->VendorHash == vendorHash ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
 
                     Controls::CompletionMargin(vendor.GetCompleteness());

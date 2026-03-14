@@ -60,8 +60,6 @@ public:
 
     void Update();
 
-    void OpenWorldMap(bool newTab = false);
-
     std::string MakeDataLink(byte type, uint32 id);
 
     void PlayVoice(uint32 voiceID);

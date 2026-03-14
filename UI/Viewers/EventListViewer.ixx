@@ -226,6 +226,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                     I::TableNextRow();
 
                     I::TableNextColumn();
+                    I::SetNextItemAllowOverlap();
                     I::Selectable(std::format("{}", eventID.UID).c_str(), currentViewer && currentViewer->EventID == eventID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
                     if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
                         EventViewer::Open(eventID, { .MouseButton = button });

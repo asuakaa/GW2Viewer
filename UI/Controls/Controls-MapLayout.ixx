@@ -1,13 +1,17 @@
 export module GW2Viewer.UI.Controls:MapLayout;
 import :ContentButton;
+import :FilteredComboBox;
 import :Texture;
 import GW2Viewer.Common.FourCC;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Data.Content;
 import GW2Viewer.Data.Game;
+import GW2Viewer.Data.Map.DisplaySet;
+import GW2Viewer.Data.Map.MapLayout;
 import GW2Viewer.Data.Pack.PackFile;
 import GW2Viewer.Data.Texture;
 import GW2Viewer.UI.ImGui;
+import GW2Viewer.UI.Viewers.Viewer;
 import GW2Viewer.Utils;
 import GW2Viewer.Utils.Encoding;
 import GW2Viewer.Utils.Format;
@@ -38,6 +42,7 @@ bool IsPointInsidePolygon(std::span<ImVec2 const> polygon, ImVec2 const& point)
 
 export namespace GW2Viewer::UI::Controls
 {
+void OpenMapLayout(Data::Map::DisplaySet const& set, Viewers::OpenViewerOptions const& options);
 
 struct MapLayout
 {
@@ -73,6 +78,8 @@ struct MapLayout
 
         boost::container::small_vector<ContentObject const*, 5> Sources;
         ObjectBase& AddSource(ContentObject const& source) { Sources.emplace_back(&source); return *this; }
+
+        bool Centered = false;
     };
     struct IconBase
     {
@@ -103,6 +110,7 @@ struct MapLayout
     {
         *this = { };
     }
+    void AdoptContinent(ContentObject const& object);
     void AddBackdrop(float scale, uint32 unexploredFileID, uint32 exploredFileID, bool water = false, bool interior = false);
     Icon& AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, float size) { return AddIcon(textureFileID, mapDef, mapPosition, { size, size }); }
     Icon& AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, ImVec2 size);
@@ -118,7 +126,9 @@ struct MapLayout
     std::vector<Icon> Icons;
     std::vector<Sector> Sectors;
     ImRect MapBoundingBox { };
+    ImRect MapClampView { };
 
+    bool ExploredMaskEnabled = true;
     bool ExploredMaskDirty = false;
     std::vector<byte> ExploredMask;
     std::unique_ptr<Data::Texture::Texture> ExploredMaskTexture;
@@ -127,6 +137,8 @@ struct MapLayout
     float ViewportScale = 1.0f;
     float ViewportScaleChaseTarget = 1.0f;
     ImVec2 ViewportScaleScreenTarget { };
+
+    bool Debug = false;
 
     bool Initialized = false;
     bool FirstDraw = false;
@@ -140,10 +152,18 @@ struct MapLayout
     struct ObjectSettings const& GetObjectSettings(ContentObject const& object) const { auto const itr = ObjectSettings.find(&object); return itr != ObjectSettings.end() ? itr->second : ObjectSettings::Default; }
     struct ObjectSettings& SetObjectSettings(ContentObject const& object) { return ObjectSettings[&object]; }
 
-    void Draw();
+    void Draw(std::function<void()> panelCallback = nullptr);
 };
 
 STATIC(MapLayout::ObjectSettings::Default);
+
+void MapLayout::AdoptContinent(ContentObject const& object)
+{
+    if (!MapLayoutContinent)
+        MapLayoutContinent = &Data::Map::MapLayout::GetMapLayoutContinents(object).front().get();
+    if (!MapLayoutContinentFloor)
+        MapLayoutContinentFloor = &Data::Map::MapLayout::GetMapLayoutContinentFloors(object).front().get();
+}
 
 void MapLayout::AddBackdrop(float scale, uint32 unexploredFileID, uint32 exploredFileID, bool water, bool interior)
 {
@@ -155,6 +175,8 @@ void MapLayout::AddBackdrop(float scale, uint32 unexploredFileID, uint32 explore
 
 MapLayout::Icon& MapLayout::AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, ImVec2 size)
 {
+    AdoptContinent(mapDef);
+
     for (ContentObject const& mapLayoutRegion : (*MapLayoutContinentFloor)["Region->Name"])
     {
         for (ContentObject const& mapLayoutMap : mapLayoutRegion["Map->Name"])
@@ -222,19 +244,21 @@ void MapLayout::Initialize()
                 ContentObject const& pointOfInterestDef = mapLayoutPointOfInterest["Name"];
                 uint32 textureFileID = 0;
                 ImVec2 const size { 32, 32 };
-                switch ((uint32)pointOfInterestDef["Type"])
+                uint32 type = pointOfInterestDef["Type"];
+                auto const [landmark, resurrectionShrine, unlock, vista] = Data::Content::TypeInfo::FindEnumValues("PointOfInterestType", "Landmark", "ResurrectionShrine", "Unlock", "Vista");
+                if (type == landmark)
+                    textureFileID = 97461;
+                else if (type == resurrectionShrine)
+                    textureFileID = 102348;
+                else if (type == unlock)
                 {
-                    case 0: textureFileID = 97461; break;
-                    case 1: textureFileID = 102348; break; // Res Shrine
-                    case 2:
-                    {
-                        for (ContentObject const* markerDef : pointOfInterestDef["Marker->Name"])
-                            if (markerDef)
-                                textureFileID = (*markerDef)["FileIcon"];
-                        break;
-                    }
-                    case 3: textureFileID = 347213; break;
+                    for (ContentObject const* markerDef : pointOfInterestDef["Unlock->Marker"])
+                        if (markerDef)
+                            textureFileID = (*markerDef)["FileIcon"];
                 }
+                else if (type == vista)
+                    textureFileID = 347213;
+
                 if (textureFileID)
                 {
                     ImVec2i const offset = mapLayoutPointOfInterest["Label->Coord"];
@@ -303,6 +327,10 @@ void MapLayout::Initialize()
         }
     }
 
+    ImVec2i const clampViewMin = mapDetailsContinentFloor["ClampViewMin"];
+    ImVec2i const clampViewMax = mapDetailsContinentFloor["ClampViewMax"];
+    MapClampView = { { (float)clampViewMin.x, (float)clampViewMin.y }, { (float)clampViewMax.x, (float)clampViewMax.y } };
+
     static constexpr auto maskSize = 1024;
     ExploredMaskDirty = true;
     ExploredMask.resize(maskSize * maskSize * 4, 0x00);
@@ -320,12 +348,12 @@ void MapLayout::Initialize()
             if (IsPointInsidePolygon(maskPoints, { x, y }))
                 ExploredMask[(y * maskSize + x) * 4] = 0xFF;
     }
-    
+
     FirstDraw = true;
     Initialized = true;
 }
 
-void MapLayout::Draw()
+void MapLayout::Draw(std::function<void()> panelCallback)
 {
     if (!Initialized)
         std::terminate();
@@ -390,7 +418,31 @@ float4 main(PS_INPUT input) : SV_Target
     auto const cursor = I::GetCursorScreenPos();
     auto const viewportSize = I::GetContentRegionAvail();
     if (FirstDraw)
-        ViewportOffset = MapBoundingBox.GetCenter() - viewportSize / 2;
+    {
+        std::optional<ImRect> allRect, centerRect;
+        auto process = [&allRect, &centerRect](auto& container)
+        {
+            for (ObjectBase& object : container)
+            {
+                if (allRect)
+                    allRect->Add(object.BoundingBox);
+                else
+                    allRect.emplace(object.BoundingBox);
+
+                if (object.Centered)
+                {
+                    object.Centered = false;
+                    if (centerRect)
+                        centerRect->Add(object.BoundingBox);
+                    else
+                        centerRect.emplace(object.BoundingBox);
+                }
+            }
+        };
+        process(Icons);
+        process(Sectors);
+        ViewportOffset = centerRect.value_or(allRect.value_or(MapClampView.GetArea() ? MapClampView : MapBoundingBox)).GetCenter();
+    }
 
     ImRect const viewportScreenRect { cursor, cursor + viewportSize };
     ImRect viewportWorldRect { ViewportOffset - viewportSize / ViewportScale / 2, ViewportOffset + viewportSize / ViewportScale / 2 };
@@ -437,7 +489,7 @@ float4 main(PS_INPUT input) : SV_Target
             if (alpha <= 0)
                 continue;
 
-            pixelBuffer.UseMask = !backdrop.Interior && backdrops == &ExploredBackdrops;
+            pixelBuffer.UseMask = ExploredMaskEnabled && !backdrop.Interior && backdrops == &ExploredBackdrops;
             pixelBuffer.UseWater = backdrop.Water;
             using Param = std::tuple<bool, bool>;
             I::GetWindowDrawList()->AddCallback([](ImDrawList const* parent_list, ImDrawCmd const* cmd)
@@ -462,10 +514,13 @@ float4 main(PS_INPUT input) : SV_Target
                                 .FullPreviewOnHover = false,
                                 .AdvanceCursor = false
                             });
-                            if (I::IsItemHovered())
-                                I::GetWindowDrawList()->AddRect(c, c + image.BoundingBox.GetSize() * ViewportScale, 0xFF00FF00, 0, ImDrawFlags_None, 5);
-                            if (scoped::ItemTooltip(ImGuiHoveredFlags_DelayNone))
-                                I::TextUnformatted(image.Tooltip.c_str());
+                            if (Debug)
+                            {
+                                if (I::IsItemHovered())
+                                    I::GetWindowDrawList()->AddRect(c, c + image.BoundingBox.GetSize() * ViewportScale, 0xFF00FF00, 0, ImDrawFlags_None, 5);
+                                if (scoped::ItemTooltip(ImGuiHoveredFlags_DelayNone))
+                                    I::TextUnformatted(image.Tooltip.c_str());
+                            }
                         }
         }
     }
@@ -534,7 +589,7 @@ float4 main(PS_INPUT input) : SV_Target
             I::GetWindowDrawList()->PathStroke(0x40FFFFFF, ImDrawFlags_None, 2);
         }
     }
-    
+
     for (auto const& icon : Icons)
     {
         if (viewportWorldRect.Overlaps(icon.BoundingBox))
@@ -554,16 +609,53 @@ float4 main(PS_INPUT input) : SV_Target
     }
 
     // Draw UI
+    auto const oldFrameRounding = I::GetStyle().FrameRounding;
     if (scoped::WithCursorPos(0, 0))
+    if (scoped::WithStyleVar(ImGuiStyleVar_FrameRounding, 0))
+    if (scoped::Child(I::GetSharedScopeID("Controls:MapLayout"), { -FLT_MIN, I::GetFrameHeight() + I::GetStyle().FramePadding.y * 2 + 2 }, ImGuiChildFlags_FrameStyle | ImGuiChildFlags_Borders))
+    if (scoped::WithStyleVar(ImGuiStyleVar_FrameRounding, oldFrameRounding))
+    {
+        if (scoped::TableDockLeft("##Panel"))
+        {
+            I::TableNextColumn();
+            panelCallback();
+
+            I::SameLine();
+            I::SetNextItemWidth(70);
+            auto mapLayoutContinent = MapLayoutContinent;
+            if (FilteredComboBox("##Continent", mapLayoutContinent, Data::Map::MapLayout::GetMapLayoutContinents() | std::views::transform(proj::addressof),
+            {
+                .Formatter = [](ContentObject const* const& continent) { return std::format("{}##{}", Utils::Encoding::ToUTF8(continent->GetDisplayName()), continent->Index); },
+            }))
+                OpenMapLayout(Data::Map::DisplaySet().Add(*mapLayoutContinent, Data::Map::MapLayout::GetMapLayoutContinentFloors(*mapLayoutContinent).front()), { });
+
+            I::SameLine();
+            I::SetNextItemWidth(400);
+            auto mapLayoutContinentFloor = MapLayoutContinentFloor;
+            if (FilteredComboBox("##ContinentFloor", mapLayoutContinentFloor, Data::Map::MapLayout::GetMapLayoutContinentFloors(*MapLayoutContinent) | std::views::transform(proj::addressof),
+            {
+                .MaxHeight = 500,
+                .Formatter = [](ContentObject const* const& continentFloor) { return std::format("{}##{}", Utils::Encoding::ToUTF8(continentFloor->GetDisplayName()), continentFloor->Index); },
+            }))
+                OpenMapLayout(Data::Map::DisplaySet().Add(*mapLayoutContinent, *mapLayoutContinentFloor), { });
+        }
+    }
+
+    if (scoped::WithCursorPos(0, I::GetFrameHeight() + I::GetStyle().FramePadding.y * 2 + 2))
+    if (scoped::WithStyleVar(ImGuiStyleVar_FrameRounding, 0))
     if (scoped::Child("Settings", { 200, -FLT_MIN }, ImGuiChildFlags_FrameStyle | ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX))
+    if (scoped::WithStyleVar(ImGuiStyleVar_FrameRounding, oldFrameRounding))
     {
         pixelBuffer.DisplaySize = I::GetIO().DisplaySize;
         pixelBuffer.MousePosition = I::GetIO().MousePos;
-        I::DragFloat("WaterThresholdLow", &pixelBuffer.WaterThresholdLow, 0.01f, 0, 1);
-        I::DragFloat("WaterThresholdHigh", &pixelBuffer.WaterThresholdHigh, 0.01f, 0, 1);
+        I::DragFloat2("WaterThreshold", &pixelBuffer.WaterThresholdLow, 0.01f, 0, 1);
         I::DragFloat2("ViewportOffset", &ViewportOffset[0], 25);
         if (I::DragFloat("ViewportScale", &ViewportScale, 0.01f, 0.001f, 5, "%.3f", ImGuiSliderFlags_Logarithmic))
             ViewportScaleChaseTarget = ViewportScale;
+
+        I::Checkbox("Explored Mask", &ExploredMaskEnabled);
+        I::SameLine();
+        I::Checkbox("Debug", &Debug);
 
         if (scoped::WithStyleVar(ImGuiStyleVar_IndentSpacing, 12))
         if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
@@ -594,7 +686,7 @@ float4 main(PS_INPUT input) : SV_Target
                             visible = true;
                             makeParentVisible = true;
                         }
-                        
+
                         if (source)
                             SetObjectSettings(*source).Visible = visible;
                         else

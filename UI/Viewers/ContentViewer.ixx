@@ -15,7 +15,7 @@ struct ContentViewer : ViewerWithHistory<ContentViewer, Data::Content::ContentOb
 {
     TargetType Content;
 
-    ContentViewer(uint32 id, bool newTab, Data::Content::ContentObject const& content) : Base(id, newTab), Content(content)
+    ContentViewer(uint32 id, bool newTab, TargetType content) : Base(id, newTab), Content(content)
     {
         content.Finalize();
     }

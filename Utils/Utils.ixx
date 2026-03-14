@@ -18,9 +18,12 @@ struct std::less<std::span<T>>
 
 namespace proj
 {
-template <typename T> struct _addressof { T* operator()(T&& input) const { return &input; } };
-template <typename T> struct _dereference { T& operator()(T&& input) const { return *input; } };
+template<typename T> struct _addressof_for { static constexpr auto* get(T&& t) { return &t; } };
+template<typename T> struct _addressof_for<std::reference_wrapper<T>> { static constexpr T* get(std::reference_wrapper<T> t) { return &t.get(); } };
 
-export template <typename T> constexpr _addressof<T> addressof;
-export template <typename T> constexpr _dereference<T> dereference;
+export constexpr struct _addressof
+{
+    template<typename T> constexpr auto* operator()(T&& input) const { return _addressof_for<std::remove_reference_t<T>>::get(std::forward<std::remove_reference_t<T>>(input)); }
+} addressof;
+export constexpr struct _dereference { constexpr auto& operator()(auto&& input) const { return *input; } } dereference;
 }
