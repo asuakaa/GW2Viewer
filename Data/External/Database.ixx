@@ -133,9 +133,12 @@ public:
         {
             LoadingOperation::Make("Texts",
                 "TextID, Key, Time, Session, Map, ClientX, ClientY, ClientZ, ClientFacing",
-                [](uint32 TextID, uint64 Key, uint32 Time, uint32 Session, uint32 Map, float ClientX, float ClientY, float ClientZ, float ClientFacing)
+                [](uint32 TextID, uint64 Key, uint32 Time, uint32 Session, std::optional<uint32> Map, std::optional<float> ClientX, std::optional<float> ClientY, std::optional<float> ClientZ, std::optional<float> ClientFacing)
                 {
-                    G::Game.Encryption.AddTextKeyInfo(TextID, { Key, { (uint64)Time * 1000, { ClientX, ClientY, ClientZ, ClientFacing }, Map, Session } });
+                    if (Map)
+                        G::Game.Encryption.AddTextKeyInfo(TextID, { Key, { (uint64)Time * 1000, { *ClientX, *ClientY, *ClientZ, *ClientFacing }, *Map, Session } });
+                    else
+                        G::Game.Encryption.AddTextKeyInfo(TextID, { Key, { (uint64)Time * 1000, Session } });
                 },
                 {
                     .Condition = "Key",

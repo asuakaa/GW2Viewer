@@ -34,6 +34,7 @@ struct Encounter
     Encounter(Time::Point time, ImVec4 position, uint32 map, uint32 mapSession, uint32 session) : Time(time), Position(position), Map(map), MapSession(mapSession), Session(session) { }
     Encounter(uint64 timestampMs, ImVec4 position, uint32 map, uint32 mapSession, uint32 session) : Time(Time::FromTimestampMs(timestampMs)), Position(position), Map(map), MapSession(mapSession), Session(session) { }
     Encounter(uint64 timestampMs, ImVec4 position, uint32 map, uint32 session) : Time(Time::FromTimestampMs(timestampMs)), Position(position), Map(map), Session(session) { }
+    Encounter(uint64 timestampMs, uint32 session) : Time(Time::FromTimestampMs(timestampMs)), Session(session) { }
 };
 
 }
