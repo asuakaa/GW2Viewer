@@ -1,6 +1,3 @@
-module;
-#include <sqlite_modern_cpp.h>
-
 export module GW2Viewer.Data.External.Database;
 import GW2Viewer.Common;
 import GW2Viewer.Common.GUID;
@@ -24,6 +21,7 @@ import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Async.ProgressBarContext;
 import GW2Viewer.Utils.Enum;
 import std;
+import sqlite_modern_cpp;
 import <gsl/gsl>;
 
 export namespace GW2Viewer::Data::External
