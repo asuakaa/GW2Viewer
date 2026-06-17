@@ -178,23 +178,15 @@ MapLayout::Icon& MapLayout::AddIcon(uint32 textureFileID, ContentObject const& m
 {
     AdoptContinent(mapDef);
 
-    for (ContentObject const& mapLayoutRegion : (*MapLayoutContinentFloor)["Region->Name"])
+    for (ContentObject const& mapLayoutMap : Data::Map::MapLayout::GetMapLayoutMaps(mapDef))
     {
-        for (ContentObject const& mapLayoutMap : mapLayoutRegion["Map->Name"])
-        {
-            ContentObject const& mapDetailsMap = mapLayoutMap["Details"];
-            ContentObject const& map = mapDetailsMap["Name"];
-            if (&map == &mapDef)
-            {
-                ImVec2 const mapRectMin = mapLayoutMap["MapRectMin"];
-                ImVec2 const mapRectMax = mapLayoutMap["MapRectMax"];
-                ImVec2 const continentRectColorMin = mapLayoutMap["ContinentRectColorMin"];
-                ImVec2 const continentRectColorMax = mapLayoutMap["ContinentRectColorMax"];
-                ImRect const mapRect { { mapRectMin.x, mapRectMax.y } , { mapRectMax.x, mapRectMin.y } };
-                ImRect const continentRectColor { continentRectColorMin, continentRectColorMax };
-                return AddIcon(textureFileID, continentRectColor.Min + continentRectColor.GetSize() * ((mapPosition - mapRect.Min) / mapRect.GetSize()), size);
-            }
-        }
+        ImVec2 const mapRectMin = mapLayoutMap["MapRectMin"];
+        ImVec2 const mapRectMax = mapLayoutMap["MapRectMax"];
+        ImVec2 const continentRectColorMin = mapLayoutMap["ContinentRectColorMin"];
+        ImVec2 const continentRectColorMax = mapLayoutMap["ContinentRectColorMax"];
+        ImRect const mapRect { { mapRectMin.x, mapRectMax.y } , { mapRectMax.x, mapRectMin.y } };
+        ImRect const continentRectColor { continentRectColorMin, continentRectColorMax };
+        return AddIcon(textureFileID, continentRectColor.Min + continentRectColor.GetSize() * ((mapPosition - mapRect.Min) / mapRect.GetSize()), size);
     }
     return AddIcon(textureFileID, { }, size);
 }
@@ -208,9 +200,9 @@ void MapLayout::Initialize()
     AddBackdrop( 2.0f, mapDetailsContinentFloor["FileMapParchment"],       mapDetailsContinentFloor["FileMapSatellite"],       true);
     AddBackdrop( 1.0f, 0,                                                  mapDetailsContinentFloor["FileSectorSatellite"],    true);
 
-    for (ContentObject const& mapLayoutRegion : (*MapLayoutContinentFloor)["Region->Name"])
+    for (ContentObject const& mapLayoutRegion : Data::Map::MapLayout::GetMapLayoutRegions(*MapLayoutContinentFloor))
     {
-        for (ContentObject const& mapLayoutMap : mapLayoutRegion["Map->Name"])
+        for (ContentObject const& mapLayoutMap : Data::Map::MapLayout::GetMapLayoutMaps(mapLayoutRegion))
         {
             ImVec2 const mapRectMin = mapLayoutMap["MapRectMin"];
             ImVec2 const mapRectMax = mapLayoutMap["MapRectMax"];
