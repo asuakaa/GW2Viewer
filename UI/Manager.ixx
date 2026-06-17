@@ -66,7 +66,7 @@ public:
 
     void ExportData(std::span<byte const> data, std::filesystem::path const& path);
 
-    void Defer(std::function<void()>&& func) { m_deferred.emplace_back(std::move(func)); }
+    void Defer(std::function<void()>&& func) { std::scoped_lock lock(m_deferredMutex); m_deferred.emplace_back(std::move(func)); }
 
     template<typename T> requires std::is_base_of_v<Viewers::Viewer, T>
     auto GetCurrentViewer() const { return dynamic_cast<T*>(GetCurrentViewer()); }
@@ -92,7 +92,17 @@ public:
 private:
     bool m_loaded = false;
 
+    std::mutex m_deferredMutex;
     std::list<std::function<void()>> m_deferred;
+    void ProcessDeferred()
+    {
+        std::scoped_lock lock(m_deferredMutex);
+        while (!m_deferred.empty())
+        {
+            m_deferred.front()();
+            m_deferred.pop_front();
+        }
+    }
 
     std::list<std::unique_ptr<Viewers::Viewer>> m_listViewers;
     std::list<std::unique_ptr<Viewers::Viewer>> m_viewers;

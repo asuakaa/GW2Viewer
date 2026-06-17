@@ -21,6 +21,8 @@ public:
         if (voiceID >= m_maxID)
             return false;
 
+        std::scoped_lock _(m_lock);
+
         bool result = false;
         for (auto& cache : m_statusCache | std::views::values)
             result |= cache.erase(voiceID);
@@ -31,6 +33,8 @@ public:
     {
         if (voiceID >= m_maxID)
             return Encryption::Status::Missing;
+
+        std::scoped_lock _(m_lock);
 
         auto& cache = m_statusCache[lang];
         if (auto const itr = cache.find(voiceID); itr != cache.end())
@@ -71,6 +75,8 @@ public:
         if (voiceID >= m_maxID)
             return { };
 
+        std::scoped_lock _(m_lock);
+
         uint32 const fileIndex = voiceID / m_voicesPerFile;
         uint32 const voiceIndex = voiceID % m_voicesPerFile;
         auto& files = m_packFiles[lang];
@@ -102,6 +108,7 @@ public:
     }
 
 private:
+    std::recursive_mutex m_lock;
     uint32 m_voicesPerFile = 10;
     uint32 m_maxID = 0;
     std::unordered_map<Language, std::vector<Archive::File const*>> m_files;

@@ -189,12 +189,7 @@ void Manager::Unload()
 void Manager::Update()
 {
     Time::UpdateFrameTime();
-
-    while (!m_deferred.empty())
-    {
-        m_deferred.front()();
-        m_deferred.pop_front();
-    }
+    ProcessDeferred();
 
     static bool needInitialSettings = G::Config.GameExePath.empty() || G::Config.GameDatPath.empty();
 
