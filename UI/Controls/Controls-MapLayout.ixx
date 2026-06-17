@@ -8,6 +8,7 @@ import GW2Viewer.Data.Content;
 import GW2Viewer.Data.Game;
 import GW2Viewer.Data.Map.DisplaySet;
 import GW2Viewer.Data.Map.MapLayout;
+import GW2Viewer.Data.Map.Marker;
 import GW2Viewer.Data.Pack.PackFile;
 import GW2Viewer.Data.Texture;
 import GW2Viewer.UI.ImGui;
@@ -19,6 +20,11 @@ import GW2Viewer.Utils.Math;
 import std;
 import <boost/container/small_vector.hpp>;
 #include "Macros.h"
+
+// TEST:
+import GW2Viewer.Data.External.Database;
+import GW2Viewer.Common.GUID;
+import GW2Viewer.Content;
 
 using GW2Viewer::Data::Content::ContentObject;
 
@@ -85,6 +91,7 @@ struct MapLayout
     {
         uint32 TextureFileID;
         Radians Rotation;
+        Data::Map::Marker const* Marker = nullptr;
     };
     struct Icon : IconBase, ObjectBase
     {
@@ -184,6 +191,49 @@ struct MapLayout
     struct ObjectSettings& SetObjectSettings(ContentObject const& object) { return ObjectSettings[&object]; }
 
     void Draw(std::function<void()> panelCallback = nullptr);
+
+
+
+
+    std::list<Data::Map::Marker> markers;
+    Data::External::QueryToken markersQueryToken;
+    void TEST_LoadAllMarkers()
+    {
+        auto maps = Data::Map::MapLayout::GetMapLayoutMaps(*MapLayoutContinentFloor);
+        std::set<uint32> mapIDs;
+        for (ContentObject const& mapLayoutMap : maps)
+        {
+            ContentObject const& mapDef = mapLayoutMap["Details->Name"];
+            mapIDs.emplace(*mapDef.GetDataID());
+        }
+        markersQueryToken = G::Database.Query("Markers", "MapID, MarkerDefGUID, CoordX, CoordY, CoordZ, CoordW, CoordType, Rotation", std::format("MapID IN ({:s})", mapIDs | std::views::transform([](uint32 mapID) { return std::format("{}", mapID); }) | std::views::join_with(","sv)),
+            [this, maps](uint32 MapID, GUID const& MarkerDefGUID, float CoordX, float CoordY, float CoordZ, float CoordW, uint32 CoordType, Degrees Rotation)
+        {
+            uint32 movingPlatformSectionID = *(uint32 const*)&CoordW;
+            markers.emplace_back(Data::Map::Marker
+            {
+                .MapID = MapID,
+                .MarkerDefGUID = MarkerDefGUID,
+                .Coord = { CoordX, CoordY, CoordZ, CoordW },
+                .CoordType = CoordType,
+            });
+            if (auto const mapDef = G::Game.Content.GetByDataID(Content::MapDef, MapID))
+            {
+                if (auto const markerDef = G::Game.Content.GetByGUID(MarkerDefGUID))
+                {
+                    ImVec2 size = (*markerDef)["DimsTexture"];
+                    if (!size.x || !size.y)
+                        size = { 32, 32 };
+                    if (Rotation)
+                        size = { size.x * std::abs(Rotation.GetCos()) + size.y * std::abs(Rotation.GetSin()), size.x * std::abs(Rotation.GetSin()) + size.y * std::abs(Rotation.GetCos()) };
+                    auto locked = CoordType == 0 ? AddIcon(markerDef->GetIcon(), { CoordX, CoordY }, size) : AddIcon(markerDef->GetIcon(), *mapDef, { CoordX, CoordY }, size);
+                    auto&& [icon, _] = locked;
+                    icon.Rotation = Rotation;
+                    icon.Marker = &markers.back();
+                }
+            }
+        }, { });
+    }
 };
 
 STATIC(MapLayout::ObjectSettings::Default);
@@ -383,6 +433,8 @@ void MapLayout::Initialize()
 
     FirstDraw = true;
     Initialized = true;
+
+    TEST_LoadAllMarkers();
 }
 
 void MapLayout::Draw(std::function<void()> panelCallback)
@@ -632,7 +684,15 @@ float4 main(PS_INPUT input) : SV_Target
             if (std::ranges::any_of(icon.Sources, [this](auto source) { return !GetObjectSettings(*source).Visible; }))
                 continue;
 
-            float const scale = std::clamp(ViewportScale, 0.5f, 1.0f);
+            bool clampScale = true;
+            if (icon.Marker)
+            {
+                uint32 flags = (*G::Game.Content.GetByGUID(icon.Marker->MarkerDefGUID))["Flags"];
+                if (flags & 0x20002)
+                    clampScale = false;
+            }
+
+            float const scale = clampScale ? std::clamp(ViewportScale, 0.5f, 1.0f) : ViewportScale;
             if (scoped::WithCursorScreenPos(ImRoundIf(project(icon.BoundingBox.GetCenter()) - icon.BoundingBox.GetSize() / 2 * scale, scale == 1.0f)))
             {
                 Texture(icon.TextureFileID, { .Size = icon.BoundingBox.GetSize() * scale, .Rotation = icon.Rotation, .FullPreviewOnHover = false, .AdvanceCursor = false });
