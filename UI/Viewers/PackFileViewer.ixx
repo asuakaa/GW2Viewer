@@ -735,10 +735,10 @@ struct PackFileViewer : FileViewer
         auto const start = Time::Now();
         for (auto const& chunk : *PackFile)
         {
-            auto const* fccP = reinterpret_cast<char const*>(&chunk.Header.Magic);
-            std::string const fcc{ fccP, strnlen(fccP, 4) };
+            std::string fcc { (char const*)&chunk.Header.Magic, 4 };
+            fcc.resize(strlen(fcc.c_str()));
             auto const* p = chunk.Data;
-            I::TextUnformatted(std::format("Chunk <{}>", fcc.c_str()).c_str());
+            I::TextUnformatted(std::format("Chunk <{}>", fcc).c_str());
             I::Dummy({ 25, 0 });
             I::SameLine();
             if (scoped::WithStyleVarY(ImGuiStyleVar_FramePadding, 0))
