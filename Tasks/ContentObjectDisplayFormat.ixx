@@ -236,7 +236,6 @@ std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject con
                 bool exists = false;
                 bool first = true;
                 bool wasEncrypted = false;
-                static auto const encryptedText = Data::Encryption::GetStatusText(Data::Encryption::Status::Encrypted);
                 for (auto const& alternative : alternatives)
                 {
                     if (alternative.Path.empty())
@@ -256,7 +255,7 @@ std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject con
                         else if (resultContent)
                             value = Utils::Encoding::ToUTF8(resultContent->GetDisplayName(purpose));
 
-                        if (value == encryptedText)
+                        if (value == Data::Encryption::EncryptedStatusText || value == Data::Encryption::EncryptedStatusTextVoice)
                         {
                             wasEncrypted = true;
                             continue;
@@ -275,7 +274,7 @@ std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject con
                                 display.append(alternative.ArraySeparator);
                             first = false;
                             // Append the yielded result
-                            display.append(wasEncrypted ? encryptedText + value : value);
+                            display.append(wasEncrypted ? Data::Encryption::EncryptedStatusText + value : value);
                             // Stop processing expression if we're not printing a whole array
                             if (!alternative.Array)
                                 break;

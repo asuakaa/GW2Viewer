@@ -72,7 +72,11 @@ struct Config
             )
         } Viewers;
 
+        bool ShowVoiceDecryptionStatusInText = false;
+
         NLOHMANN_DEFINE_TYPE_ORDERED_INTRUSIVE_WITH_DEFAULT(UI
+            , ShowVoiceDecryptionStatusInText
+
             , Viewers
         )
     } UI;

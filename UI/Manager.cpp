@@ -261,6 +261,8 @@ void Manager::Update()
             I::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
             if (I::MenuItem("Show Original Names", nullptr, &G::Config.ShowOriginalNames))
                 G::Viewers::Notify(&Viewers::ContentListViewer::ClearCache);
+            if (I::MenuItem("Show Voice Decryption Status in Text", nullptr, &G::Config.UI.ShowVoiceDecryptionStatusInText))
+                G::Viewers::Notify(&Viewers::ContentListViewer::ClearCache);
             I::MenuItem("Show <c=#CCF>Valid Raw Pointers</c>", nullptr, &G::Config.ShowValidRawPointers);
             I::MenuItem("Show Content Symbol <c=#8>Name</c> Before <c=#4>Type</c>", nullptr, &G::Config.ShowContentSymbolNameBeforeType);
             I::MenuItem("Display Content Layout As  " ICON_FA_FOLDER_TREE " Tree", nullptr, &G::Config.TreeContentStructLayout);

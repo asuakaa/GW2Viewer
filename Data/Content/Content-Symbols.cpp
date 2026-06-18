@@ -5,6 +5,7 @@ import GW2Viewer.Common.GUID;
 import GW2Viewer.Common.Token32;
 import GW2Viewer.Common.Token64;
 import GW2Viewer.Data.Encryption;
+import GW2Viewer.Data.Encryption.Asset;
 import GW2Viewer.Data.Game;
 import GW2Viewer.Data.Map.DisplaySet;
 import GW2Viewer.UI.Controls;
@@ -354,7 +355,35 @@ std::string StringID::GetDisplayText(Context const& context) const
 {
     auto const stringID = GetStringID(context);
     auto [string, status] = G::Game.Text.Get(stringID);
-    return std::format("{}{}", Encryption::GetStatusText(status), string ? *string : L"");
+
+    std::optional<Encryption::Status> voiceStatus;
+    if (G::Config.UI.ShowVoiceDecryptionStatusInText && NameQueryTraits::Get(context.Purpose).Draw)
+    {
+        if (auto const variants = G::Game.Text.GetVariants(stringID))
+            voiceStatus = std::ranges::fold_left(*variants, Encryption::Status::Missing, [](Encryption::Status value, uint32 variant)
+            {
+                switch (G::Game.Voice.GetStatus(variant, G::Config.Language, G::Game.Encryption.GetAssetKey(Encryption::AssetType::Voice, variant)))
+                {
+                    using enum Encryption::Status;
+                    case Missing: break;
+                    case Encrypted: return Encrypted;
+                    case Decrypted: if (value != Encrypted) return Decrypted; break;
+                    case Unencrypted: if (value != Encrypted && value != Decrypted) return Unencrypted; break;
+                }
+                return value;
+            });
+        else if (auto const voice = G::Game.Text.GetVoice(stringID))
+            voiceStatus = G::Game.Voice.GetStatus(voice, G::Config.Language, G::Game.Encryption.GetAssetKey(Encryption::AssetType::Voice, voice));
+    }
+
+    // Both an optimization and to explicitly match those string constants that are referenced elsewhere
+    if (status == Encryption::Status::Encrypted && (!voiceStatus || *voiceStatus == Encryption::Status::Encrypted))
+        return voiceStatus ? Encryption::EncryptedStatusTextVoice : Encryption::EncryptedStatusText;
+
+    return std::format("{}{}{}",
+        Encryption::GetStatusText(status),
+        voiceStatus ? std::format("<nosel><c=#{}>" ICON_FA_PLAY "</c> </nosel>", Encryption::GetStatusColor(*voiceStatus)) : "",
+        string ? *string : L"");
 }
 ordered_json StringID::Export(Context const& context, ExportOptions const& options) const
 {

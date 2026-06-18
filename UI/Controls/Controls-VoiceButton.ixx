@@ -20,14 +20,14 @@ struct VoiceButtonOptions
     bool MenuItem = false;
     uint32 VariantIndex = 0;
 };
-void VoiceButton(uint32 voiceID, VoiceButtonOptions const& options = { })
+Data::Encryption::Status VoiceButton(uint32 voiceID, VoiceButtonOptions const& options = { })
 {
     scoped::WithID(voiceID);
     auto const status = G::Game.Voice.GetStatus(voiceID, G::Config.Language, G::Game.Encryption.GetAssetKey(Data::Encryption::AssetType::Voice, voiceID));
     static constexpr char const* VARIANT_NAMES[] { "Asura Male", "Asura Female", "Charr Male", "Charr Female", "Human Male", "Human Female", "Norn Male", "Norn Female", "Sylvari Male", "Sylvari Female" };
-    std::string const text = std::vformat(options.MenuItem ? "<c=#{}>{} {} ({})</c>##Play" : "<c=#{}>{} {}</c>##Play", std::make_format_args(
+    auto const text = std::vformat(options.MenuItem ? "<c=#{}>{}{} ({})</c>##Play" : "<c=#{}>{}{}</c>##Play", std::make_format_args(
         GetStatusColor(status),
-        status == Data::Encryption::Status::Missing || status == Data::Encryption::Status::Encrypted ? GetStatusText(status) : ICON_FA_PLAY,
+        GetVoiceStatusText(status),
         voiceID,
         VARIANT_NAMES[options.VariantIndex]));
     if ([&]
@@ -40,8 +40,10 @@ void VoiceButton(uint32 voiceID, VoiceButtonOptions const& options = { })
 
     }())
         G::UI.PlayVoice(voiceID);
+
+    return status;
 }
-void TextVoiceButton(uint32 textID, VoiceButtonOptions const& options = { })
+std::optional<Data::Encryption::Status> TextVoiceButton(uint32 textID, VoiceButtonOptions const& options = { })
 {
     scoped::WithID(textID);
     if (auto const variants = G::Game.Text.GetVariants(textID))
@@ -59,9 +61,7 @@ void TextVoiceButton(uint32 textID, VoiceButtonOptions const& options = { })
             return value;
         });
 
-        std::string const text = std::format("<c=#{}>{} Variant " ICON_FA_CHEVRON_DOWN "</c>##PlayVariant",
-            GetStatusColor(status),
-            status == Data::Encryption::Status::Missing || status == Data::Encryption::Status::Encrypted ? GetStatusText(status) : ICON_FA_PLAY);
+        auto const text = std::format("<c=#{}>{}Variant " ICON_FA_CHEVRON_DOWN "</c>##PlayVariant", GetStatusColor(status), GetVoiceStatusText(status));
         if (options.MenuItem)
             I::MenuItem(text.c_str());
         else if (options.Selectable)
@@ -79,9 +79,14 @@ void TextVoiceButton(uint32 textID, VoiceButtonOptions const& options = { })
                 VoiceButton(variant, menuItemOptions);
             }
         }
+
+        return status;
     }
-    else if (auto const voice = G::Game.Text.GetVoice(textID))
-        VoiceButton(voice, options);
+
+    if (auto const voice = G::Game.Text.GetVoice(textID))
+        return VoiceButton(voice, options);
+
+    return { };
 }
 
 }

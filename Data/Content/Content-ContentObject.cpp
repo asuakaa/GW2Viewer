@@ -91,7 +91,6 @@ std::wstring ContentObject::GetDisplayName(QueryPurpose purpose) const
                 return recursion;
 
             bool wasEncrypted = false;
-            static auto const encryptedText = GetStatusText(Encryption::Status::Encrypted);
             for (auto const& field : typeInfo.NameFields)
             {
                 for (auto& result : QuerySymbolData(*this, field))
@@ -103,14 +102,14 @@ std::wstring ContentObject::GetDisplayName(QueryPurpose purpose) const
                     else if (auto const content = symbolType->GetContent({ purpose, result }).value_or(nullptr))
                         value = Utils::Encoding::ToUTF8(content->GetDisplayName(purpose));
 
-                    if (value == encryptedText)
+                    if (value == Encryption::EncryptedStatusText || value == Encryption::EncryptedStatusTextVoice)
                     {
                         wasEncrypted = true;
                         continue;
                     }
 
                     if (!value.empty())
-                        return Utils::Encoding::FromUTF8(wasEncrypted ? encryptedText + value : value);
+                        return Utils::Encoding::FromUTF8(wasEncrypted ? Encryption::EncryptedStatusText + value : value);
                 }
             }
         }
