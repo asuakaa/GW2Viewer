@@ -70,24 +70,20 @@ bool ContentObject::HasCorrectCustomName() const
     return custom && IsCustomNameCorrect(*this, *custom);
 }
 
-std::wstring ContentObject::GetDebugDisplayName() const
+std::wstring ContentObject::GetDisplayName(QueryPurpose purpose) const
 {
-    return std::format(L"[{}] {}", Type->GetDisplayName(), GetDisplayName());
-}
-
-std::wstring ContentObject::GetDisplayName(bool skipCustom, bool skipColor, bool skipFormat) const
-{
-    if (!skipCustom)
+    auto const traits = NameQueryTraits::Get(purpose); // Local copy to avoid looking it up in the static array every time
+    if (traits.Custom && !(traits.RespectShowOriginalNamesConfig && G::Config.ShowOriginalNames))
     {
         // Use custom name if set
         if (auto const custom = GetCustomName(*this))
-            return skipColor ? *custom : std::format(L"<c=#{}>{}</c>", IsCustomNameCorrect(*this, *custom) ? L"CFC" : L"FCC", *custom);
+            return traits.Color ? std::format(L"<c=#{}>{}</c>", IsCustomNameCorrect(*this, *custom) ? L"CFC" : L"FCC", *custom) : *custom;
 
         // Use name from a designated symbol if enabled and available
         if (auto const& typeInfo = Type->GetTypeInfo(); !typeInfo.DisplayFormat.empty() || !typeInfo.NameFields.empty())
         {
-            if (!skipFormat && !typeInfo.DisplayFormat.empty())
-                if (auto const text = G::Tasks::ContentObjectDisplayFormat.Process(*this, typeInfo.DisplayFormat); !text.empty())
+            if (traits.DisplayFormat && !typeInfo.DisplayFormat.empty())
+                if (auto const text = G::Tasks::ContentObjectDisplayFormat.Process(*this, purpose, typeInfo.DisplayFormat); !text.empty())
                     return Utils::Encoding::FromUTF8(text);
 
             auto [recursion, guard] = G::Tasks::ContentObjectDisplayFormat.GetRecursionGuard(*this);
@@ -102,10 +98,10 @@ std::wstring ContentObject::GetDisplayName(bool skipCustom, bool skipColor, bool
                 {
                     std::string value;
                     auto const symbolType = result.Symbol.GetType();
-                    if (auto text = symbolType->GetDisplayText(result); !text.empty())
+                    if (auto text = symbolType->GetDisplayText({ purpose, result }); !text.empty())
                         value = std::move(text);
-                    else if (auto const content = symbolType->GetContent(result).value_or(nullptr))
-                        value = Utils::Encoding::ToUTF8(content->GetDisplayName(false, true));
+                    else if (auto const content = symbolType->GetContent({ purpose, result }).value_or(nullptr))
+                        value = Utils::Encoding::ToUTF8(content->GetDisplayName(purpose));
 
                     if (value == encryptedText)
                     {
@@ -120,23 +116,23 @@ std::wstring ContentObject::GetDisplayName(bool skipCustom, bool skipColor, bool
         }
     }
     if (auto* name = GetName(); name && name->Name && name->Name->Pointer)
-        return std::vformat(skipColor ? L"{}" : L"<c=#FFC>{}</c>", std::make_wformat_args(name->Name->Pointer));
+        return std::vformat(traits.Color ? L"<c=#FFC>{}</c>" : L"{}", std::make_wformat_args(name->Name->Pointer));
     if (auto* id = GetDataID())
-        return std::vformat(skipColor ? L"<ID: 0x{:08X}>" : L"<c=#AAA><ID: 0x{:08X}></c>", std::make_wformat_args(Type->Index << 22 | (*id & 0x3FFFFF)));
+        return std::vformat(traits.Color ? L"<c=#AAA><ID: 0x{:08X}></c>" : L"<ID: 0x{:08X}>", std::make_wformat_args(Type->Index << 22 | (*id & 0x3FFFFF)));
     if (auto* uid = GetUID(); uid && *uid)
-        return std::vformat(skipColor ? L"<UID: 0x{:08X}>" : L"<c=#AAA><UID: 0x{:08X}></c>", std::make_wformat_args(Type->Index << 22 | (*uid & 0x3FFFFF)));
+        return std::vformat(traits.Color ? L"<c=#AAA><UID: 0x{:08X}></c>" : L"<UID: 0x{:08X}>", std::make_wformat_args(Type->Index << 22 | (*uid & 0x3FFFFF)));
     if (auto* guid = GetGUID())
-        return std::vformat(skipColor ? L"<GUID: {}>" : L"<c=#AAA><GUID: {}></c>", std::make_wformat_args(*guid));
-    return std::vformat(skipColor ? L"<@0x{:016X}>" : L"<c=#AAA><@0x{:016X}></c>", std::make_wformat_args((uintptr_t)Data.data()));
+        return std::vformat(traits.Color ? L"<c=#AAA><GUID: {}></c>" : L"<GUID: {}>", std::make_wformat_args(*guid));
+    return std::vformat(traits.Color ? L"<c=#AAA><@0x{:016X}></c>" : L"<@0x{:016X}>", std::make_wformat_args((uintptr_t)Data.data()));
 }
 
-std::wstring ContentObject::GetFullDisplayName(bool skipCustom, bool skipColor, bool skipFormat) const
+std::wstring ContentObject::GetFullDisplayName(QueryPurpose purpose) const
 {
     if (auto* name = GetName(); name && name->FullName && name->FullName->Pointer && (!name->Name || !name->Name->Pointer || std::wstring_view(name->Name->Pointer) != name->FullName->Pointer))
         return name->FullName->Pointer;
     return Namespace
-        ? std::vformat(skipColor ? L"{}.{}" : L"<c=#8>{}.</c>{}", std::make_wformat_args(Namespace->GetFullDisplayName(skipCustom, skipColor), GetDisplayName(skipCustom, skipColor, skipFormat)))
-        : GetDisplayName(skipCustom, skipColor, skipFormat);
+        ? std::vformat(NameQueryTraits::Get(purpose).Color ? L"<c=#8>{}.</c>{}" : L"{}.{}", std::make_wformat_args(Namespace->GetFullDisplayName(purpose), GetDisplayName(purpose)))
+        : GetDisplayName(purpose);
 }
 
 std::wstring ContentObject::GetFullName() const
@@ -220,7 +216,7 @@ bool ContentObject::MatchesFilter(ContentFilter& filter) const
             (!filter.Type || Type == filter.Type) &&
             (filter.NameSearch.empty()
                 || (name = GetName(), name && name->Name && name->Name->Pointer && std::ranges::search(std::wstring_view(name->Name->Pointer), filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper))
-                || (displayName = GetDisplayName(false, true), std::ranges::search(displayName, filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper))) &&
+                || (displayName = GetDisplayName(QueryPurpose::Search), std::ranges::search(displayName, filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper))) &&
             (!filter.GUIDSearch || (guid = GetGUID(), guid && *guid == *filter.GUIDSearch)) &&
             (!filter.UIDSearch || (id = GetUID(), id && *id >= filter.UIDSearch->first && *id <= filter.UIDSearch->second)) &&
             (!filter.DataIDSearch || (id = GetDataID(), id && *id >= filter.DataIDSearch->first && *id <= filter.DataIDSearch->second));

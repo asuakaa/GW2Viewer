@@ -120,7 +120,7 @@ struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors"
                         for (auto const& item : tab.InventoryItems)
                         {
                             if (auto const itemDef = G::Game.Content.GetByDataID(Content::ItemDef, item.ItemDefDataID))
-                                if (Utils::String::Uppercased(itemDef->GetDisplayName(false, true)).contains(query))
+                                if (Utils::String::Uppercased(itemDef->GetDisplayName(Data::Content::QueryPurpose::Search)).contains(query))
                                     return true;
                             if (auto const string = G::Game.Text.GetNormalized(item.UnlockTextID).first; string && !string->empty() && string->contains(query))
                                 return true;

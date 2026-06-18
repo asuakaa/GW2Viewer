@@ -18,7 +18,7 @@ std::wstring* GetCustomName(ContentNamespace const& ns)
 }
 bool IsCustomNameCorrect(ContentNamespace const& ns)
 {
-    return MangleFullName(std::format(L"{}.", ns.GetFullDisplayName(false, true))).substr(0, 5) == ns.Name;
+    return MangleFullName(std::format(L"{}.", ns.GetFullDisplayName(QueryPurpose::Mangle))).substr(0, 5) == ns.Name;
 }
 
 bool ContentNamespace::HasCustomName() const
@@ -82,13 +82,14 @@ bool ContentNamespace::CustomNameMatchesSiblings(std::wstring_view custom) const
     return true;
 }
 
-std::wstring ContentNamespace::GetDisplayName(bool skipCustom, bool skipColor) const
+std::wstring ContentNamespace::GetDisplayName(QueryPurpose purpose) const
 {
-    if (!skipCustom)
+    auto const traits = NameQueryTraits::Get(purpose); // Local copy to avoid looking it up in the static array every time
+    if (traits.Custom && !(traits.RespectShowOriginalNamesConfig && G::Config.ShowOriginalNames))
     {
         if (auto const custom = GetCustomName(*this))
         {
-            if (!skipColor)
+            if (traits.Color)
             {
                 if (!IsCustomNameCorrect(*this))
                     return std::format(L"<c=#FCC>{}</c>", *custom);
@@ -99,14 +100,14 @@ std::wstring ContentNamespace::GetDisplayName(bool skipCustom, bool skipColor) c
         }
     }
 
-    return skipColor ? Name : std::format(L"<c=#FFC>{}</c>", Name);
+    return traits.Color ? std::format(L"<c=#FFC>{}</c>", Name) : Name;
 }
 
-std::wstring ContentNamespace::GetFullDisplayName(bool skipCustom, bool skipColor) const
+std::wstring ContentNamespace::GetFullDisplayName(QueryPurpose purpose) const
 {
     return Parent
-        ? std::format(L"{}.{}", Parent->GetFullDisplayName(skipCustom, skipColor), GetDisplayName(skipCustom, skipColor))
-        : GetDisplayName(skipCustom, skipColor);
+        ? std::format(L"{}.{}", Parent->GetFullDisplayName(purpose), GetDisplayName(purpose))
+        : GetDisplayName(purpose);
 }
 
 std::wstring ContentNamespace::GetFullName() const
@@ -141,7 +142,7 @@ bool ContentNamespace::MatchesFilter(ContentFilter& filter) const
         result =
             !filter ||
             !filter.NameSearch.empty() && std::ranges::search(Name, filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper) ||
-            !filter.NameSearch.empty() && (displayName = GetDisplayName(false, true), std::ranges::search(displayName, filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper)) ||
+            !filter.NameSearch.empty() && (displayName = GetDisplayName(QueryPurpose::Search), std::ranges::search(displayName, filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper)) ||
             std::ranges::any_of(Namespaces, std::bind_back(&ContentNamespace::MatchesFilter, std::ref(filter))) ||
             std::ranges::any_of(Entries, std::bind_back(&ContentObject::MatchesFilter, std::ref(filter)));
     }

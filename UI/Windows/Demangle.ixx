@@ -211,7 +211,7 @@ struct Demangle : Window
                     BruteforceRecursiveSkipTo = nullptr;
                     if (objects && std::ranges::any_of(ns.Entries, [](auto const& object) { return !object->HasCorrectCustomName(); }) ||
                         namespaces && std::ranges::any_of(ns.Namespaces, [](auto const& ns) { return !ns->HasCorrectCustomName(); }))
-                        current = std::format(L"{}.", ns.GetFullDisplayName(false, true));
+                        current = std::format(L"{}.", ns.GetFullDisplayName(Data::Content::QueryPurpose::Demangle));
                 }
                 if (!current.empty())
                     co_yield current;
@@ -433,13 +433,13 @@ struct Demangle : Window
             {
                 [this](Data::Content::ContentNamespace const* ns, std::wstring const& name)
                 {
-                    if (ns->HasCorrectCustomName() && (onlyUnnamed || ns->GetDisplayName(false, true) == name))
+                    if (ns->HasCorrectCustomName() && (onlyUnnamed || ns->GetDisplayName(Data::Content::QueryPurpose::Demangle) == name))
                         return true;
                     return false;
                 },
                 [this](Data::Content::ContentObject const* object, std::wstring const& name)
                 {
-                    if (object->HasCorrectCustomName() && (onlyUnnamed || object->GetDisplayName(false, true) == name))
+                    if (object->HasCorrectCustomName() && (onlyUnnamed || object->GetDisplayName(Data::Content::QueryPurpose::Demangle) == name))
                         return true;
                     if (!ResultsPrefix.empty())
                         if (!object->GetFullName().starts_with({ mangledPrefix.data(), 5 }))

@@ -82,7 +82,7 @@ struct ListContentValues : Window
             }
         }
         for (auto& value : Results | std::views::values)
-            value.ObjectsSorted = Utils::Sort::ComplexSorted(value.Objects, false, [](Data::Content::ContentObject const* object) { return std::make_tuple(object->GetFullDisplayName(), object->GetFullName(), object->Type->Index, object->Index); });
+            value.ObjectsSorted = Utils::Sort::ComplexSorted(value.Objects, false, [](Data::Content::ContentObject const* object) { return std::make_tuple(object->GetFullDisplayName(Data::Content::QueryPurpose::Sort), object->GetFullName(), object->Type->Index, object->Index); });
     }
 
     std::string Title() override { return "List Content Values"; }

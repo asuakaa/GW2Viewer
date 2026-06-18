@@ -210,7 +210,7 @@ struct ValueRepContentObject : ValueRepBase
         I::TableNextRow();
         I::TableNextColumn(); I::TextUnformatted("Content");
         I::TableNextColumn(); I::Text("%s", Utils::Encoding::ToUTF8(object->Type->GetDisplayName()).c_str());
-        I::TableNextColumn(); I::Text("%s", Utils::Encoding::ToUTF8(object->GetFullDisplayName()).c_str());
+        I::TableNextColumn(); I::Text("%s", Utils::Encoding::ToUTF8(object->GetFullDisplayName(Data::Content::QueryPurpose::Draw)).c_str());
     }
 };
 

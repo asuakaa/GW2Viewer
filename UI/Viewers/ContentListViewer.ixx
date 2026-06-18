@@ -174,10 +174,10 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
                 ComplexSort(data, invert, [invert](Data::Content::ContentObject const* object) { return std::make_tuple(Unsorted(object->Type->Index, invert), valueOrDefault(object->GetDataID()), object->Index); });
                 break;
             case Type:
-                ComplexSort(data, invert, [invert](Data::Content::ContentObject const* object) { return std::make_tuple(object->Type->Index, Unsorted(Lazy([object] { return object->GetDisplayName(G::Config.ShowOriginalNames, true); }), invert), Unsorted(object->Index, invert)); });
+                ComplexSort(data, invert, [invert](Data::Content::ContentObject const* object) { return std::make_tuple(object->Type->Index, Unsorted(Lazy([object] { return object->GetDisplayName(Data::Content::QueryPurpose::SortRespectShowOriginalNamesConfig); }), invert), Unsorted(object->Index, invert)); });
                 break;
             case Name:
-                ComplexSort(data, invert, [flatten](Data::Content::ContentObject const* object) { return std::make_tuple(flatten ? object->GetFullDisplayName(G::Config.ShowOriginalNames, true) : object->GetDisplayName(G::Config.ShowOriginalNames, true), object->Index); });
+                ComplexSort(data, invert, [flatten](Data::Content::ContentObject const* object) { return std::make_tuple(flatten ? object->GetFullDisplayName(Data::Content::QueryPurpose::SortRespectShowOriginalNamesConfig) : object->GetDisplayName(Data::Content::QueryPurpose::SortRespectShowOriginalNamesConfig), object->Index); });
                 break;
             default: std::terminate();
         }
@@ -768,11 +768,11 @@ private:
             I::TableNextColumn();
             I::SetNextItemAllowOverlap();
             context.BeginItem();
-            open = I::TreeNodeEx(&ns, flags, ICON_FA_FOLDER " %s", Utils::Encoding::ToUTF8(ns.GetDisplayName(G::Config.ShowOriginalNames)).c_str());
+            open = I::TreeNodeEx(&ns, flags, ICON_FA_FOLDER " %s", Utils::Encoding::ToUTF8(ns.GetDisplayName(Data::Content::QueryPurpose::DrawRespectShowOriginalNamesConfig)).c_str());
             context.CommitItem();
 
             if (I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft) && I::GetIO().KeyCtrl)
-                G::Windows::Demangle.OpenBruteforceUI(std::format(L"{}.", ns.GetFullDisplayName(false, true)), nullptr, true);
+                G::Windows::Demangle.OpenBruteforceUI(std::format(L"{}.", ns.GetFullDisplayName(Data::Content::QueryPurpose::Demangle)), nullptr, true);
 
             if (scoped::PopupContextItem())
             if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, I::GetStyle().FramePadding))
@@ -784,17 +784,17 @@ private:
                 I::SameLine();
                 Controls::CopyButton("Full Mangled Name", ns.GetFullName());
 
-                Controls::CopyButton("Name", ns.GetDisplayName(G::Config.ShowOriginalNames, true));
+                Controls::CopyButton("Name", ns.GetDisplayName(Data::Content::QueryPurpose::Copy));
                 I::SameLine();
-                Controls::CopyButton("Full Name", ns.GetFullDisplayName(G::Config.ShowOriginalNames, true));
+                Controls::CopyButton("Full Name", ns.GetFullDisplayName(Data::Content::QueryPurpose::Copy));
 
                 I::Dummy({ 1, 10 });
 
                 I::TextUnformatted("Bruteforce Demangle Name");
                 if (ns.Parent)
-                    DrawBruteforceButtons("Siblings", std::format(L"{}.", ns.Parent->GetFullDisplayName(false, true)));
-                DrawBruteforceButtons("Children", std::format(L"{}.", ns.GetFullDisplayName(false, true)));
-                DrawBruteforceButtons("Recursively", std::format(L"{}.", ns.GetFullDisplayName(false, true)), &ns);
+                    DrawBruteforceButtons("Siblings", std::format(L"{}.", ns.Parent->GetFullDisplayName(Data::Content::QueryPurpose::Demangle)));
+                DrawBruteforceButtons("Children", std::format(L"{}.", ns.GetFullDisplayName((Data::Content::QueryPurpose::Demangle))));
+                DrawBruteforceButtons("Recursively", std::format(L"{}.", ns.GetFullDisplayName((Data::Content::QueryPurpose::Demangle))), &ns);
                 if (G::Windows::Demangle.CanSkipRecursiveBruteforceTo(ns))
                     if (I::SameLine(); I::Button(ICON_FA_FORWARD_FAST " Skip to This"))
                         G::Windows::Demangle.SkipRecursiveBruteforceTo(ns);
@@ -921,7 +921,7 @@ private:
                 if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, I::GetStyle().FramePadding))
                 {
                     I::Text("Full Name: %s", Utils::Encoding::ToUTF8(entry.GetFullName()).c_str());
-                    if (I::InputTextUTF8("Name", G::Config.ContentObjectNames, *entry.GetGUID(), entry.GetName() && entry.GetName()->Name && entry.GetName()->Name->Pointer ? entry.GetName()->Name->Pointer : entry.GetDisplayName()))
+                    if (I::InputTextUTF8("Name", G::Config.ContentObjectNames, *entry.GetGUID(), entry.GetName() && entry.GetName()->Name && entry.GetName()->Name->Pointer ? entry.GetName()->Name->Pointer : entry.GetDisplayName(Data::Content::QueryPurpose::Draw)))
                         ClearCache();
 
                     Controls::CopyButton("GUID", entry.GetGUID() ? *entry.GetGUID() : GUID::Empty, entry.GetGUID());
@@ -944,9 +944,9 @@ private:
                     I::SameLine();
                     Controls::CopyButton("Full Mangled Name", entry.GetFullName(), entry.GetName());
 
-                    Controls::CopyButton("Name", I::StripMarkup(entry.GetDisplayName(false, true)));
+                    Controls::CopyButton("Name", I::StripMarkup(entry.GetDisplayName(Data::Content::QueryPurpose::Copy)));
                     I::SameLine();
-                    Controls::CopyButton("Full Name", I::StripMarkup(entry.GetFullDisplayName(false, true)));
+                    Controls::CopyButton("Full Name", I::StripMarkup(entry.GetFullDisplayName(Data::Content::QueryPurpose::Copy)));
 
                     I::Dummy({ 1, 10 });
 
@@ -958,7 +958,7 @@ private:
                         I::Dummy({ 1, 10 });
 
                         I::TextUnformatted("Bruteforce Demangle Name");
-                        DrawBruteforceButtons("Siblings", std::format(L"{}.", entry.Namespace->GetFullDisplayName(false, true)));
+                        DrawBruteforceButtons("Siblings", std::format(L"{}.", entry.Namespace->GetFullDisplayName(Data::Content::QueryPurpose::Demangle)));
                     }
                 }
 
@@ -978,7 +978,7 @@ private:
                 if (auto const icon = entry.GetIcon(); icon && !entry.Type->GetTypeInfo().DisplayFormat.contains("@icon"))
                     if (Controls::Texture(icon, { .Size = { 0, I::GetFrameHeight() } }))
                         I::SameLine(0, 0);
-                I::Text("%s", Utils::Encoding::ToUTF8(Flatten ? entry.GetFullDisplayName(G::Config.ShowOriginalNames) : entry.GetDisplayName(G::Config.ShowOriginalNames)).c_str());
+                I::Text("%s", Utils::Encoding::ToUTF8(Flatten ? entry.GetFullDisplayName(Data::Content::QueryPurpose::DrawRespectShowOriginalNamesConfig) : entry.GetDisplayName(Data::Content::QueryPurpose::DrawRespectShowOriginalNamesConfig)).c_str());
 
                 I::TableNextColumn(); I::TextUnformatted(Utils::Encoding::ToUTF8(entry.Type->GetDisplayName()).c_str());
                 I::TableNextColumn(); I::Text("%u", entry.Data.size());

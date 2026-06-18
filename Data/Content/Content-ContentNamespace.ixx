@@ -6,6 +6,7 @@ export namespace GW2Viewer::Data::Content
 {
 struct ContentFilter;
 struct ContentObject;
+enum class QueryPurpose;
 
 struct ContentNamespace
 {
@@ -20,8 +21,8 @@ struct ContentNamespace
     [[nodiscard]] bool HasCorrectCustomName() const;
     [[nodiscard]] bool CustomNameMatchesSiblings() const;
     [[nodiscard]] bool CustomNameMatchesSiblings(std::wstring_view custom) const;
-    [[nodiscard]] std::wstring GetDisplayName(bool skipCustom = false, bool skipColor = false) const;
-    [[nodiscard]] std::wstring GetFullDisplayName(bool skipCustom = false, bool skipColor = false) const;
+    [[nodiscard]] std::wstring GetDisplayName(QueryPurpose purpose) const;
+    [[nodiscard]] std::wstring GetFullDisplayName(QueryPurpose purpose) const;
     [[nodiscard]] std::wstring GetFullName() const;
 
     [[nodiscard]] ContentNamespace const* GetRoot() const;

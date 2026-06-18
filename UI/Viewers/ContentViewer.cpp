@@ -20,7 +20,7 @@ namespace GW2Viewer::UI::Viewers
 std::string ContentViewer::Title()
 {
     auto const icon = Content.GetIcon();
-    return Utils::Encoding::ToUTF8(std::format(L"<c=#4>{}</c> {}{}", Content.Type->GetDisplayName(), icon ? std::format(L"<img={}/>", icon) : L""sv, Content.GetDisplayName()));
+    return Utils::Encoding::ToUTF8(std::format(L"<c=#4>{}</c> {}{}", Content.Type->GetDisplayName(), icon ? std::format(L"<img={}/>", icon) : L""sv, Content.GetDisplayName(Data::Content::QueryPurpose::Draw)));
 }
 
 void ContentViewer::Draw()
@@ -58,7 +58,7 @@ void ContentViewer::Draw()
                 I::InputTextReadOnly("##FullMangledName", Utils::Encoding::ToUTF8(Content.GetFullName()).c_str());
                 I::SameLine();
                 I::SetNextItemWidth(dataID ? -90 : -FLT_MIN);
-                I::InputTextReadOnly("##FullName", Utils::Encoding::ToUTF8(Content.GetFullDisplayName()));
+                I::InputTextReadOnly("##FullName", Utils::Encoding::ToUTF8(Content.GetFullDisplayName(Data::Content::QueryPurpose::Draw)));
                 if (dataID)
                 {
                     I::SameLine();
@@ -73,7 +73,7 @@ void ContentViewer::Draw()
                 auto const start = I::GetCursorPosY();
                 if (scoped::Group())
                 {
-                    if (I::InputTextUTF8("Content Name", G::Config.ContentObjectNames, *Content.GetGUID(), Content.GetName() && Content.GetName()->Name && Content.GetName()->Name->Pointer ? Content.GetName()->Name->Pointer : Content.GetDisplayName()))
+                    if (I::InputTextUTF8("Content Name", G::Config.ContentObjectNames, *Content.GetGUID(), Content.GetName() && Content.GetName()->Name && Content.GetName()->Name->Pointer ? Content.GetName()->Name->Pointer : Content.GetDisplayName(Data::Content::QueryPurpose::Draw)))
                         G::Viewers::Notify(&ContentListViewer::ClearCache);
                     I::InputTextUTF8("Namespace Name", G::Config.ContentNamespaceNames, Content.Namespace->GetFullName(), Content.Namespace->Name);
                     I::InputTextWithHint("Type Name", Utils::Encoding::ToUTF8(Content.Type->GetDisplayName()).c_str(), &typeInfo.Name);
@@ -139,7 +139,7 @@ void ContentViewer::Draw()
                 }
             }
 
-            auto const referenceSorter = [](Data::Content::ContentObject::Reference const& ref) { return std::make_tuple(ref.Type, ref.Object->GetFullDisplayName(), ref.Object->GetFullName(), ref.Object->Type->Index, ref.Object->Index); };
+            auto const referenceSorter = [](Data::Content::ContentObject::Reference const& ref) { return std::make_tuple(ref.Type, ref.Object->GetFullDisplayName(Data::Content::QueryPurpose::Sort), ref.Object->GetFullName(), ref.Object->Type->Index, ref.Object->Index); };
 
             if (!Content.OutgoingReferences.empty())
                 I::PushStyleColor(ImGuiCol_Text, 0xFF00FF00);

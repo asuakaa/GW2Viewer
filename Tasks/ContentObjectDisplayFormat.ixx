@@ -35,10 +35,10 @@ struct ContentObjectDisplayFormat
         }));
     }
 
-    [[nodiscard]] std::string Process(Data::Content::ContentObject const& object, std::string_view displayFormat) const;
+    [[nodiscard]] std::string Process(Data::Content::ContentObject const& object, Data::Content::QueryPurpose purpose, std::string_view displayFormat) const;
 
 private:
-    [[nodiscard]] std::string Process(Data::Content::ContentObject const& object, char const*& pFormat, char const* pFormatEnd, bool inTernary = false) const;
+    [[nodiscard]] std::string Process(Data::Content::ContentObject const& object, Data::Content::QueryPurpose purpose, char const*& pFormat, char const* pFormatEnd, bool inTernary = false) const;
 
     inline static thread_local boost::container::small_vector<Data::Content::ContentObject const*, 100> tls_recursionPrevention;
 };
@@ -122,14 +122,14 @@ char const* ContentObjectDisplayFormat::GetMarkupHelp() const
 }
 #undef CODE
 
-std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject const& content, std::string_view displayFormat) const
+std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject const& content, Data::Content::QueryPurpose purpose, std::string_view displayFormat) const
 {
     auto pFormat = displayFormat.data();
-    auto name = Process(content, pFormat, pFormat + displayFormat.size());
+    auto name = Process(content, purpose, pFormat, pFormat + displayFormat.size());
     name.shrink_to_fit();
     return name;
 }
-std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject const& content, char const*& pFormat, char const* pFormatEnd, bool inTernary) const
+std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject const& content, Data::Content::QueryPurpose purpose, char const*& pFormat, char const* pFormatEnd, bool inTernary) const
 {
     std::string display;
     display.reserve(std::distance(pFormat, pFormatEnd) * 5);
@@ -189,12 +189,12 @@ std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject con
                             break;
                         case '?': // Ternary expression - parse true part
                             ++pFormat;
-                            trueText = Process(content, pFormat, pFormatEnd, true);
+                            trueText = Process(content, purpose, pFormat, pFormatEnd, true);
                             switch (*pFormat)
                             {
                                 case ':': // Parse false part
                                     ++pFormat;
-                                    falseText = Process(content, pFormat, pFormatEnd, true);
+                                    falseText = Process(content, purpose, pFormat, pFormatEnd, true);
                                     switch (*pFormat)
                                     {
                                         case '}':
@@ -248,13 +248,13 @@ std::string ContentObjectDisplayFormat::Process(Data::Content::ContentObject con
 
                         std::string value;
                         auto const symbolType = result.Symbol.GetType();
-                        auto const resultContent = symbolType->GetContent(result).value_or(nullptr);
+                        auto const resultContent = symbolType->GetContent({ purpose, result }).value_or(nullptr);
                         if (resultContent == &content)
                             value = "<c=#F00>RECURSION</c>";
-                        else if (auto text = symbolType->GetDisplayText(result); !text.empty())
+                        else if (auto text = symbolType->GetDisplayText({ purpose, result }); !text.empty())
                             value = std::move(text);
                         else if (resultContent)
-                            value = Utils::Encoding::ToUTF8(resultContent->GetDisplayName(false, true));
+                            value = Utils::Encoding::ToUTF8(resultContent->GetDisplayName(purpose));
 
                         if (value == encryptedText)
                         {

@@ -279,7 +279,7 @@ template<typename T, size_t N> void Point<T, N>::Draw(Context const& context) co
     if (auto const map = context.Content.GetMap(); map && map != &context.Content && mapCoords)
     {
         I::SameLine(0, 0);
-        I::Button(std::format(ICON_FA_LOCATION_DOT " <c=#4>in</c> <c=#8>{}</c> {}", map->Type->GetDisplayName(), map->GetDisplayName()).c_str());
+        I::Button(std::format(ICON_FA_LOCATION_DOT " <c=#4>in</c> <c=#8>{}</c> {}", map->Type->GetDisplayName(), map->GetDisplayName(QueryPurpose::Draw)).c_str());
         if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
             UI::Viewers::MapLayoutViewer::Open(Map::DisplaySet().Add(*map, *mapCoords), { .MouseButton = button });
         I::SetItemTooltip("Open World Map to map-space coordinates");
@@ -289,7 +289,7 @@ template<typename T, size_t N> void Point<T, N>::Draw(Context const& context) co
 std::string GUID::GetDisplayText(Context const& context) const
 {
     if (auto const* object = *GetContent(context))
-        return Utils::Encoding::ToUTF8(object->GetDisplayName(false, true));
+        return Utils::Encoding::ToUTF8(object->GetDisplayName(context.Purpose));
     return std::format("{}", context.Data<GW2Viewer::GUID>());
 }
 std::optional<uint32> GUID::GetIcon(Context const& context) const
@@ -423,7 +423,7 @@ void RawPointerT::Draw(Context const& context) const
 std::string ContentPointer::GetDisplayText(Context const& context) const
 {
     if (auto const* object = *GetContent(context))
-        return Utils::Encoding::ToUTF8(object->GetDisplayName(false, true));
+        return Utils::Encoding::ToUTF8(object->GetDisplayName(context.Purpose));
     return { };
 }
 std::optional<uint32> ContentPointer::GetIcon(Context const& context) const
@@ -767,12 +767,12 @@ void ParamDeclare::Draw(Context const& context) const
 
 std::string MetaContentName::GetDisplayText(Context const& context) const
 {
-    return Utils::Encoding::ToUTF8(context.Data<ContentObject>().GetDisplayName(false, false, true));
+    return Utils::Encoding::ToUTF8(context.Data<ContentObject>().GetDisplayName(QueryPurpose::MetaContentSymbol));
 }
 std::string MetaContentPath::GetDisplayText(Context const& context) const
 {
     auto const& content = context.Data<ContentObject>();
-    return Utils::Encoding::ToUTF8(content.Root ? content.Root->GetFullDisplayName(false, false, true) : content.Namespace->GetFullDisplayName());
+    return Utils::Encoding::ToUTF8(content.Root ? content.Root->GetFullDisplayName(QueryPurpose::MetaContentSymbol) : content.Namespace->GetFullDisplayName(QueryPurpose::MetaContentSymbol));
 }
 std::string MetaContentType::GetDisplayText(Context const& context) const
 {
@@ -790,7 +790,7 @@ std::optional<uint32> MetaContentIcon::GetIcon(Context const& context) const
 std::string MetaContentMap::GetDisplayText(Context const& context) const
 {
     auto const map = context.Data<ContentObject>().GetMap();
-    return map ? Utils::Encoding::ToUTF8(map->GetDisplayName(false, false, true)) : "";
+    return map ? Utils::Encoding::ToUTF8(map->GetDisplayName(QueryPurpose::MetaContentSymbol)) : "";
 }
 std::optional<ContentObject const*> MetaContentMap::GetMap(Context const& context) const
 {
@@ -798,7 +798,7 @@ std::optional<ContentObject const*> MetaContentMap::GetMap(Context const& contex
 }
 std::string MetaContentDisplay::GetDisplayText(Context const& context) const
 {
-    return Utils::Encoding::ToUTF8(context.Data<ContentObject>().GetDisplayName());
+    return Utils::Encoding::ToUTF8(context.Data<ContentObject>().GetDisplayName(QueryPurpose::MetaContentDisplay));
 }
 
 std::vector<TypeInfo::SymbolType const*>& GetTypes()

@@ -1,11 +1,58 @@
 export module GW2Viewer.Data.Content:Query;
 import :TypeInfo;
+import magic_enum;
 import <boost/container/small_vector.hpp>;
 import <experimental/generator>;
 
 export namespace GW2Viewer::Data::Content
 {
 struct ContentObject;
+
+enum class QueryPurpose
+{
+    Unspecified,
+    Draw,
+    DrawRespectShowOriginalNamesConfig,
+    Search,
+    Sort,
+    SortRespectShowOriginalNamesConfig,
+    Copy,
+    MetaContentDisplay,
+    MetaContentSymbol,
+    Mangle,
+    Demangle,
+    Wiki,
+};
+struct NameQueryTraits
+{
+    bool Custom : 1 = true;
+    bool Color : 1 = true;
+    bool DisplayFormat : 1 = true;
+    bool Draw : 1 = false;
+    bool RespectShowOriginalNamesConfig : 1 = false;
+
+    static constexpr NameQueryTraits const& Get(QueryPurpose purpose)
+    {
+        static constexpr auto traits = []
+        {
+            std::array<NameQueryTraits, magic_enum::enum_count<QueryPurpose>()> traits;
+            traits[std::to_underlying(QueryPurpose::Unspecified)] = { };
+            traits[std::to_underlying(QueryPurpose::Draw)] = { .Draw = true };
+            traits[std::to_underlying(QueryPurpose::DrawRespectShowOriginalNamesConfig)] = { .Draw = true, .RespectShowOriginalNamesConfig = true };
+            traits[std::to_underlying(QueryPurpose::Search)] = { .Color = false };
+            traits[std::to_underlying(QueryPurpose::Sort)] = { .Color = false };
+            traits[std::to_underlying(QueryPurpose::SortRespectShowOriginalNamesConfig)] = { .Color = false, .RespectShowOriginalNamesConfig = true };
+            traits[std::to_underlying(QueryPurpose::Copy)] = { .Color = false };
+            traits[std::to_underlying(QueryPurpose::MetaContentDisplay)] = { };
+            traits[std::to_underlying(QueryPurpose::MetaContentSymbol)] = { .DisplayFormat = false };
+            traits[std::to_underlying(QueryPurpose::Mangle)] = { .Color = false, .DisplayFormat = false };
+            traits[std::to_underlying(QueryPurpose::Demangle)] = { .Color = false, .DisplayFormat = false };
+            traits[std::to_underlying(QueryPurpose::Wiki)] = { .Color = false, .DisplayFormat = false };
+            return traits;
+        }();
+        return traits[std::to_underlying(purpose)];
+    }
+};
 
 struct SymbolPath
 {

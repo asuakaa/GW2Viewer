@@ -23,7 +23,7 @@ void ContentNamespaceButton(Data::Content::ContentNamespace const* ns, void cons
 
     if (G::UI.Hovered.Namespace.Is(ns))
         I::PushStyleColor(ImGuiCol_Button, I::GetColorU32(ImGuiCol_ButtonHovered));
-    I::Button(std::format(ICON_FA_FOLDER " {}", Utils::Encoding::ToUTF8(ns ? ns->GetFullDisplayName() : L"???")).c_str());
+    I::Button(std::format(ICON_FA_FOLDER " {}", Utils::Encoding::ToUTF8(ns ? ns->GetFullDisplayName(Data::Content::QueryPurpose::Draw) : L"???")).c_str());
     if (G::UI.Hovered.Namespace.Is(ns))
         I::PopStyleColor();
     G::UI.Hovered.Namespace.SetLastItem(ns);

@@ -18,6 +18,7 @@ export namespace GW2Viewer::Data::Content
 struct ContentObject;
 struct ContentTypeInfo;
 struct ExportOptions;
+enum class QueryPurpose;
 
 struct TypeInfo
 {
@@ -224,9 +225,12 @@ struct TypeInfo
         ContentObject const& Content;
         Symbol& Symbol;
         Symbol::DrawType Draw;
+        QueryPurpose Purpose;
 
-        template<typename T> Context(T const* data, ContentObject const& content, struct Symbol& symbol, Symbol::DrawType draw = { }) : Content(content), Symbol(symbol), Draw(draw), m_data((byte const*)data) { }
-        template<typename T> Context(T const* data, Context const& source) : Context((byte const*)data, source.Content, source.Symbol, source.Draw) { }
+        template<typename T> Context(T const* data, ContentObject const& content, struct Symbol& symbol, Symbol::DrawType draw, QueryPurpose purpose) : Content(content), Symbol(symbol), Draw(draw), Purpose(purpose), m_data((byte const*)data) { }
+        template<typename T> Context(T const* data, ContentObject const& content, struct Symbol& symbol, Symbol::DrawType draw = { }) : Context(data, content, symbol, draw, { }) { }
+        template<typename T> Context(T const* data, Context const& source) : Context((byte const*)data, source.Content, source.Symbol, source.Draw, source.Purpose) { }
+        Context(QueryPurpose purpose, Context const& source) : Context(source.m_data, source.Content, source.Symbol, source.Draw, purpose) { }
 
     private:
         byte const* m_data;

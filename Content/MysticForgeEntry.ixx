@@ -105,7 +105,7 @@ struct MysticForgeEntry
 
     Completeness GetCompleteness() const { return std::ranges::min(Ingredients | std::views::transform(&Ingredient::GetCompleteness)); }
 
-    std::string Ingredient(uint32 index) const
+    std::string Ingredient(uint32 index, Data::Content::QueryPurpose purpose) const
     {
         std::string result;
         result.reserve(100);
@@ -156,7 +156,7 @@ struct MysticForgeEntry
                     if (auto const icon = itemDef->GetIcon())
                         result += std::format("<img={}/>", icon);
 
-                    result += std::format("{}", Utils::Encoding::ToUTF8(Data::Text::FormatStringEmpty(itemDef->GetDisplayName())));
+                    result += std::format("{}", Utils::Encoding::ToUTF8(Data::Text::FormatStringEmpty(itemDef->GetDisplayName(purpose))));
                 }
                 if (ingredient.Count != 1)
                     result += std::format(" <c=#4>x</c> <c=#8>{}</c>", ingredient.Count);
@@ -172,12 +172,12 @@ struct MysticForgeEntry
         }
         return result;
     }
-    std::string Text() const
+    std::string Text(Data::Content::QueryPurpose purpose) const
     {
         std::string result;
         result.reserve(400);
         for (uint32 i = 0; i < Ingredients.size(); ++i)
-            result += std::format("{}{}", i ? " <c=#8>|</c> " : "", Ingredient(i));
+            result += std::format("{}{}", i ? " <c=#8>|</c> " : "", Ingredient(i, purpose));
         return result;
     }
 };

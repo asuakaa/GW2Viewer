@@ -48,7 +48,7 @@ void ContentButton(Data::Content::ContentObject const* content, void const* id, 
     do
     {
         textPreIcon = std::vformat(options.HideContentType || condense.TypeName ? "{0}{2}" : "{0} <c=#4>{1}</c>{2}", std::make_format_args(options.Icon, content ? Utils::Encoding::ToUTF8(content->Type->GetDisplayName()) : options.MissingTypeName, options.HideContentIcon && options.HideContentName ? "" : " "));
-        textPostIcon = options.HideContentName ? "" : content ? Utils::Encoding::ToUTF8(condense.FullName ? content->GetDisplayName() : content->GetFullDisplayName()) : options.MissingContentName;
+        textPostIcon = options.HideContentName ? "" : content ? Utils::Encoding::ToUTF8(condense.FullName ? content->GetDisplayName(Data::Content::QueryPurpose::Draw) : content->GetFullDisplayName(Data::Content::QueryPurpose::Draw)) : options.MissingContentName;
         sizePreIcon = I::CalcTextSize(textPreIcon.c_str(), textPreIcon.c_str() + textPreIcon.size());
         sizePostIcon = I::CalcTextSize(textPostIcon.c_str(), textPostIcon.c_str() + textPostIcon.size());
         size = padding * 2;

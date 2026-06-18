@@ -359,7 +359,7 @@ void EventViewer::DrawObjective(Content::Event::Objective const& objective, Cach
         {
             params.DrawProgress({
                 .DisplayedAsProgressBar = !params.Objective.TargetCount,
-                .AgentNameLiteral = FormatString(49808, TEXTPARAM_STR1_LITERAL, G::Game.Content.GetByGUID(params.Objective.ExtraGUID)->GetDisplayName()),
+                .AgentNameLiteral = FormatString(49808, TEXTPARAM_STR1_LITERAL, G::Game.Content.GetByGUID(params.Objective.ExtraGUID)->GetDisplayName(Data::Content::QueryPurpose::Draw)),
                 .TextDefault = params.Objective.Flags & 0x2 ? 777812u : 47250,
                 .TargetCount = params.Objective.TargetCount,
                 .Icon = 1,

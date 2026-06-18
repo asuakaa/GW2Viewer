@@ -3,6 +3,7 @@ import GW2Viewer.Common;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Content;
 import GW2Viewer.Content.MysticForgeEntry;
+import GW2Viewer.Data.Content;
 import GW2Viewer.Data.Game;
 import GW2Viewer.UI.Controls;
 import GW2Viewer.UI.ImGui;
@@ -43,12 +44,13 @@ struct MysticForgeEntryListViewer : ListViewer<MysticForgeEntryListViewer, { ICO
         {
             using Utils::Sort::ComplexSort;
             using enum MysticForgeEntrySort;
+            using enum Data::Content::QueryPurpose;
             case GameBuild:     std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; }); break;
             case UID:           ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { return std::make_tuple(id.UID, id.GameBuild); }); break;
-            case Ingredient0:   ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { auto const& e = Content::mysticForgeEntries.at(id); return std::make_tuple(I::StripMarkup(e.Ingredient(0)), I::StripMarkup(e.Ingredient(1)), I::StripMarkup(e.Ingredient(2)), I::StripMarkup(e.Ingredient(3))); }); break;
-            case Ingredient1:   ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { auto const& e = Content::mysticForgeEntries.at(id); return std::make_tuple(I::StripMarkup(e.Ingredient(1)), I::StripMarkup(e.Ingredient(0)), I::StripMarkup(e.Ingredient(2)), I::StripMarkup(e.Ingredient(3))); }); break;
-            case Ingredient2:   ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { auto const& e = Content::mysticForgeEntries.at(id); return std::make_tuple(I::StripMarkup(e.Ingredient(2)), I::StripMarkup(e.Ingredient(0)), I::StripMarkup(e.Ingredient(1)), I::StripMarkup(e.Ingredient(3))); }); break;
-            case Ingredient3:   ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { auto const& e = Content::mysticForgeEntries.at(id); return std::make_tuple(I::StripMarkup(e.Ingredient(3)), I::StripMarkup(e.Ingredient(0)), I::StripMarkup(e.Ingredient(1)), I::StripMarkup(e.Ingredient(2))); }); break;
+            case Ingredient0:   ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { auto const& e = Content::mysticForgeEntries.at(id); return std::make_tuple(I::StripMarkup(e.Ingredient(0, Sort)), I::StripMarkup(e.Ingredient(1, Sort)), I::StripMarkup(e.Ingredient(2, Sort)), I::StripMarkup(e.Ingredient(3, Sort))); }); break;
+            case Ingredient1:   ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { auto const& e = Content::mysticForgeEntries.at(id); return std::make_tuple(I::StripMarkup(e.Ingredient(1, Sort)), I::StripMarkup(e.Ingredient(0, Sort)), I::StripMarkup(e.Ingredient(2, Sort)), I::StripMarkup(e.Ingredient(3, Sort))); }); break;
+            case Ingredient2:   ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { auto const& e = Content::mysticForgeEntries.at(id); return std::make_tuple(I::StripMarkup(e.Ingredient(2, Sort)), I::StripMarkup(e.Ingredient(0, Sort)), I::StripMarkup(e.Ingredient(1, Sort)), I::StripMarkup(e.Ingredient(3, Sort))); }); break;
+            case Ingredient3:   ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { auto const& e = Content::mysticForgeEntries.at(id); return std::make_tuple(I::StripMarkup(e.Ingredient(3, Sort)), I::StripMarkup(e.Ingredient(0, Sort)), I::StripMarkup(e.Ingredient(1, Sort)), I::StripMarkup(e.Ingredient(2, Sort))); }); break;
             case Encounter:     ComplexSort(data, invert, [](Content::MysticForgeEntryID id) { return Content::mysticForgeEntries.at(id).Encounter.Time; }); break;
             default: std::terminate();
         }
@@ -107,7 +109,7 @@ struct MysticForgeEntryListViewer : ListViewer<MysticForgeEntryListViewer, { ICO
                 {
                     auto const& mysticForgeEntry = Content::mysticForgeEntries.at(id);
                     for (uint32 i = 0; i < mysticForgeEntry.Ingredients.size(); ++i)
-                        if (Utils::String::Uppercased(Utils::Encoding::FromUTF8(mysticForgeEntry.Ingredient(i))).contains(query))
+                        if (Utils::String::Uppercased(Utils::Encoding::FromUTF8(mysticForgeEntry.Ingredient(i, Data::Content::QueryPurpose::Search))).contains(query))
                             return true;
 
                     return false;
@@ -185,16 +187,16 @@ struct MysticForgeEntryListViewer : ListViewer<MysticForgeEntryListViewer, { ICO
                     I::Text("<c=#%s>%s</c>", mysticForgeEntry.GameMode ? "F" : "4", mysticForgeEntry.GameMode == 0 ? "PvE" : mysticForgeEntry.GameMode == 1 ? "PvP" : "???");
 
                     I::TableNextColumn();
-                    I::TextUnformatted(mysticForgeEntry.Ingredient(0).c_str());
+                    I::TextUnformatted(mysticForgeEntry.Ingredient(0, Data::Content::QueryPurpose::Draw).c_str());
 
                     I::TableNextColumn();
-                    I::TextUnformatted(mysticForgeEntry.Ingredient(1).c_str());
+                    I::TextUnformatted(mysticForgeEntry.Ingredient(1, Data::Content::QueryPurpose::Draw).c_str());
 
                     I::TableNextColumn();
-                    I::TextUnformatted(mysticForgeEntry.Ingredient(2).c_str());
+                    I::TextUnformatted(mysticForgeEntry.Ingredient(2, Data::Content::QueryPurpose::Draw).c_str());
 
                     I::TableNextColumn();
-                    I::TextUnformatted(mysticForgeEntry.Ingredient(3).c_str());
+                    I::TextUnformatted(mysticForgeEntry.Ingredient(3, Data::Content::QueryPurpose::Draw).c_str());
 
                     I::TableNextColumn();
                     Controls::Encounter(mysticForgeEntry.Encounter);

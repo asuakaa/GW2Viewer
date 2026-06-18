@@ -47,7 +47,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                 std::ranges::sort(data, [invert](auto a, auto b) { return a.UID < b.UID ^ invert; });
                 break;
             case Map:
-                ComplexSort(data, invert, [](Content::EventID id) { return Content::events.at(id).Map(); });
+                ComplexSort(data, invert, [](Content::EventID id) { return Content::events.at(id).Map(Data::Content::QueryPurpose::Sort); });
                 break;
             case Type:
                 ComplexSort(data, invert, [](Content::EventID id) { return Content::events.at(id).Type(); });
@@ -160,7 +160,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                         if (auto const string = G::Game.Text.GetNormalized(objective.AgentNameTextID).first; string && !string->empty() && string->contains(query))
                             return false;
                     }
-                    if (Utils::String::Uppercased(event.Map()).contains(query))
+                    if (Utils::String::Uppercased(event.Map(Data::Content::QueryPurpose::Search)).contains(query))
                         return false;
                     return true;
                 });
@@ -232,7 +232,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                         EventViewer::Open(eventID, { .MouseButton = button });
 
                     I::TableNextColumn();
-                    I::TextUnformatted(Utils::Encoding::ToUTF8(event.Map()).c_str());
+                    I::TextUnformatted(Utils::Encoding::ToUTF8(event.Map(Data::Content::QueryPurpose::Draw)).c_str());
 
                     I::TableNextColumn();
                     I::TextUnformatted(event.Type().c_str());

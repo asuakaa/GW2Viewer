@@ -3,6 +3,7 @@ import GW2Viewer.Common;
 import GW2Viewer.Common.GUID;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Content;
+import GW2Viewer.Data.Content;
 import GW2Viewer.Data.External.Types;
 import GW2Viewer.Data.Game;
 import GW2Viewer.Utils.Enum;
@@ -105,14 +106,14 @@ struct Event
     std::set<State> States;
     std::set<Objective> Objectives;
 
-    std::wstring Map() const
+    std::wstring Map(Data::Content::QueryPurpose purpose) const
     {
         for (auto const& state : States)
             if (auto const object = G::Game.Content.GetByDataID(MapDef, state.Map))
-                return object->GetDisplayName();
+                return object->GetDisplayName(purpose);
         for (auto const& objective : Objectives)
             if (auto const object = G::Game.Content.GetByDataID(MapDef, objective.Map))
-                return object->GetDisplayName();
+                return object->GetDisplayName(purpose);
         return { };
     }
     std::string Type() const

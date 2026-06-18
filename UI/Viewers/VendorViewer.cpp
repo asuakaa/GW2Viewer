@@ -154,7 +154,7 @@ void VendorViewer::Draw()
                             bool const wikiWriteItem = wikiWrite && itemDef;
                             if (wikiWriteItem)
                             {
-                                std::format_to(wiki, "{{{{Vendor table row|item={}", Utils::Encoding::ToUTF8(Data::Text::FormatStringEmpty(itemDef->GetDisplayName(false, true, true))));
+                                std::format_to(wiki, "{{{{Vendor table row|item={}", Utils::Encoding::ToUTF8(Data::Text::FormatStringEmpty(itemDef->GetDisplayName(Data::Content::QueryPurpose::Wiki))));
                                 if (item.BuyQuantity != 1)
                                     std::format_to(wiki, "|quantity={}", item.BuyQuantity);
                             }
@@ -198,7 +198,7 @@ void VendorViewer::Draw()
                                                 auto const currencyDef = G::Game.Content.GetByDataID(Content::CurrencyDef, currency.CurrencyDefDataID);
                                                 Controls::ContentButton(currencyDef, &currency.CurrencyDefDataID, { .Icon = std::format("{}", currency.Count), .HideContentType = true, .HideContentName = true });
                                                 if (wikiWrite && currencyDef)
-                                                    std::format_to(wiki, "{} {}", currency.Count, Utils::Encoding::ToUTF8(Data::Text::FormatStringEmpty(currencyDef->GetDisplayName(false, true, true))));
+                                                    std::format_to(wiki, "{} {}", currency.Count, Utils::Encoding::ToUTF8(Data::Text::FormatStringEmpty(currencyDef->GetDisplayName(Data::Content::QueryPurpose::Wiki))));
                                                 break;
                                             }
                                             [[fallthrough]];
@@ -262,7 +262,7 @@ void VendorViewer::Draw()
                                             auto const currencyItem = G::Game.Content.GetByDataID(Content::ItemDef, currency.ItemDefDataID);
                                             Controls::ContentButton(currencyItem, &currency.ItemDefDataID, { .Icon = std::format("{}", currency.Count), .HideContentType = true, .HideContentName = true });
                                             if (wikiWrite && currencyItem)
-                                                std::format_to(wiki, "{} {}", currency.Count, Utils::Encoding::ToUTF8(Data::Text::FormatStringEmpty(currencyItem->GetDisplayName(false, true, true))));
+                                                std::format_to(wiki, "{} {}", currency.Count, Utils::Encoding::ToUTF8(Data::Text::FormatStringEmpty(currencyItem->GetDisplayName(Data::Content::QueryPurpose::Wiki))));
                                             break;
                                         }
                                         case Content::VENDOR_CURRENCY_TYPE_KARMA:

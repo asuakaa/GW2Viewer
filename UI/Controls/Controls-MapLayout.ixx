@@ -344,7 +344,7 @@ void MapLayout::Initialize()
                     ImVec2i const offset = mapLayoutPointOfInterest["Label->Coord"];
                     fillSources(AddIcon(textureFileID, convertPosition(mapLayoutPointOfInterest["WorldPosition"]) + ImVec2(offset.x, offset.y), size))
                         .AddSource(mapLayoutPointOfInterest)
-                        .SetTooltip(Utils::Encoding::ToUTF8(std::format(L"{}\nMap: {}\nRegion: {}\nFloor: {}", mapLayoutPointOfInterest.GetDisplayName(), mapLayoutMap.GetDisplayName(), mapLayoutRegion.GetDisplayName(), MapLayoutContinentFloor->GetDisplayName())));
+                        .SetTooltip(Utils::Encoding::ToUTF8(std::format(L"{}\nMap: {}\nRegion: {}\nFloor: {}", mapLayoutPointOfInterest.GetDisplayName(Data::Content::QueryPurpose::Draw), mapLayoutMap.GetDisplayName(Data::Content::QueryPurpose::Draw), mapLayoutRegion.GetDisplayName(Data::Content::QueryPurpose::Draw), MapLayoutContinentFloor->GetDisplayName(Data::Content::QueryPurpose::Draw))));
                 }
             }
 
@@ -634,7 +634,7 @@ float4 main(PS_INPUT input) : SV_Target
             {
                 parent = &parent->Children[source];
                 if (parent->Name.empty())
-                    parent->Name = source->GetDisplayName();
+                    parent->Name = source->GetDisplayName(Data::Content::QueryPurpose::Draw);
             }
             parent->Object = &object;
             parent->TextureFileID = textureFileID;
@@ -719,7 +719,7 @@ float4 main(PS_INPUT input) : SV_Target
             auto mapLayoutContinent = MapLayoutContinent;
             if (FilteredComboBox("##Continent", mapLayoutContinent, Data::Map::MapLayout::GetMapLayoutContinents() | std::views::transform(proj::addressof),
             {
-                .Formatter = [](ContentObject const* const& continent) { return std::format("{}##{}", Utils::Encoding::ToUTF8(continent->GetDisplayName()), continent->Index); },
+                .Formatter = [](ContentObject const* const& continent) { return std::format("{}##{}", Utils::Encoding::ToUTF8(continent->GetDisplayName(Data::Content::QueryPurpose::Draw)), continent->Index); },
             }))
                 OpenMapLayout(Data::Map::DisplaySet().Add(*mapLayoutContinent, Data::Map::MapLayout::GetMapLayoutContinentFloors(*mapLayoutContinent).front()), { });
 
@@ -729,7 +729,7 @@ float4 main(PS_INPUT input) : SV_Target
             if (FilteredComboBox("##ContinentFloor", mapLayoutContinentFloor, Data::Map::MapLayout::GetMapLayoutContinentFloors(*MapLayoutContinent) | std::views::transform(proj::addressof),
             {
                 .MaxHeight = 500,
-                .Formatter = [](ContentObject const* const& continentFloor) { return std::format("{}##{}", Utils::Encoding::ToUTF8(continentFloor->GetDisplayName()), continentFloor->Index); },
+                .Formatter = [](ContentObject const* const& continentFloor) { return std::format("{}##{}", Utils::Encoding::ToUTF8(continentFloor->GetDisplayName(Data::Content::QueryPurpose::Draw)), continentFloor->Index); },
             }))
                 OpenMapLayout(Data::Map::DisplaySet().Add(*mapLayoutContinent, *mapLayoutContinentFloor), { });
         }
