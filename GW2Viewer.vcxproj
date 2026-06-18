@@ -173,6 +173,7 @@
     <ClCompile Include="dep\sqlite_modern_cpp.ixx" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Services\ContentObjectDisplayFormat.ixx" />
+    <ClCompile Include="Services\CrashHandler.ixx" />
     <ClCompile Include="Services\Graphics.ixx" />
     <ClCompile Include="Services\StartupLoading.ixx" />
     <ClCompile Include="UI\Controls\Controls-AsyncProgressBar.ixx" />
