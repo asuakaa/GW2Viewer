@@ -111,4 +111,15 @@ auto NumberLiteral(Range&& range, T& target)
     return NumberLiteral(std::forward<Range>(range), "{}", target);
 }
 
+template<typename Context, typename Format, typename... Args>
+bool TryScan(Context& ctx, Format const& f, Args&... args)
+{
+    if (auto r = scn::scan(ctx.range(), f, args...))
+    {
+        ctx.range() = std::move(r.range());
+        return true;
+    }
+    return false;
+}
+
 }

@@ -1,6 +1,5 @@
 export module GW2Viewer.UI.Viewers.EventListViewer;
 import GW2Viewer.Common;
-import GW2Viewer.Common.Time;
 import GW2Viewer.Content.Event;
 import GW2Viewer.Data.Game;
 import GW2Viewer.UI.Controls;
@@ -11,9 +10,7 @@ import GW2Viewer.UI.Viewers.ListViewer;
 import GW2Viewer.UI.Viewers.ViewerRegistry;
 import GW2Viewer.Utils.Async;
 import GW2Viewer.Utils.Encoding;
-import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
-import GW2Viewer.Utils.Sort;
 import GW2Viewer.Utils.String;
 import std;
 #include "Macros.h"
@@ -23,8 +20,6 @@ export namespace GW2Viewer::UI::Viewers
 
 struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "Events", Category::ListViewer }>
 {
-    EventListViewer(uint32 id, bool newTab) : Base(id, newTab) { UpdateSearch(); }
-
     std::shared_mutex Lock;
     std::vector<Content::EventID> FilteredList;
     Utils::Async::Scheduler AsyncFilter { true };
@@ -33,34 +28,61 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
     std::optional<std::pair<int32, int32>> FilterID;
     uint32 FilterRange { };
     struct { bool Normal = true, Group = true, Meta = true, Dungeon = true, NonEvent = true; } Filters;
-    enum class EventSort { ID, Map, Type, Title, EncounteredTime } Sort { EventSort::ID };
-    bool SortInvert { };
 
-    static void SortList(Utils::Async::Context context, std::vector<Content::EventID>& data, EventSort sort, bool invert)
+    struct DrawContext
     {
-        std::shared_lock _(Content::eventsLock);
-        switch (sort)
+        Content::EventID EventID;
+        std::shared_lock<decltype(Content::eventsLock)> Lock { Content::eventsLock };
+        Content::Event const& Event = Content::events.at(EventID);
+    };
+    Controls::Table<Content::EventID, decltype(FilteredList)&, DrawContext const&> Table { *this };
+
+    EventListViewer(uint32 id, bool newTab) : Base(id, newTab)
+    {
+        Table.SetShowFilterRow();
+        Table.AddColumn("ID",
         {
-            using Utils::Sort::ComplexSort;
-            using enum EventSort;
-            case ID:
-                std::ranges::sort(data, [invert](auto a, auto b) { return a.UID < b.UID ^ invert; });
-                break;
-            case Map:
-                ComplexSort(data, invert, [](Content::EventID id) { return Content::events.at(id).Map(Data::Content::QueryPurpose::Sort); });
-                break;
-            case Type:
-                ComplexSort(data, invert, [](Content::EventID id) { return Content::events.at(id).Type(); });
-                break;
-            case Title:
-                ComplexSort(data, invert, [](Content::EventID id) { return Content::events.at(id).Title(); });
-                break;
-            case EncounteredTime:
-                ComplexSort(data, invert, [](Content::EventID id) { return Content::events.at(id).EncounteredTime(); });
-                break;
-            default: std::terminate();
-        }
+            .Width = 50,
+            .Filter = [](Content::EventID id) { return id.UID; },
+            .Sort = [](decltype(FilteredList)& data, bool invert) { std::ranges::sort(data, [invert](auto a, auto b) { return a.UID < b.UID ^ invert; }); },
+            .Draw = [](DrawContext const& context)
+            {
+                auto const* currentViewer = G::UI.GetCurrentViewer<EventViewer>();
+                I::SetNextItemAllowOverlap();
+                I::Selectable(std::format("{}", context.EventID.UID).c_str(), currentViewer && currentViewer->EventID == context.EventID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
+                if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+                    EventViewer::Open(context.EventID, { .MouseButton = button });
+            },
+        });
+        Table.AddColumn("Map",
+        {
+            .Width = -1,
+            .Filter = [](Content::EventID id) { return Content::events.at(id).Map(Data::Content::QueryPurpose::Sort); },
+            .Draw = [](DrawContext const& context) { I::TextUnformatted(Utils::Encoding::ToUTF8(context.Event.Map(Data::Content::QueryPurpose::Draw)).c_str()); },
+        });
+        Table.AddColumn("Type",
+        {
+            .Width = 50,
+            .Filter = [](Content::EventID id) { return Content::events.at(id).Type(); },
+            .Draw = [](DrawContext const& context) { I::TextUnformatted(context.Event.Type().c_str()); },
+        });
+        Table.AddColumn("Title",
+        {
+            .Width = -1,
+            .Filter = [](Content::EventID id) { return Content::events.at(id).Title(); },
+            .Draw = [](DrawContext const& context) { I::TextUnformatted(Utils::Encoding::ToUTF8(context.Event.Title()).c_str()); },
+        });
+        Table.AddColumn("Encountered",
+        {
+            .Width = 80,
+            .PreferSortDescending = true,
+            .Filter = [](Content::EventID id) { return Content::events.at(id).EncounteredTime(); },
+            .Draw = [](DrawContext const& context){ Controls::Encounter({ context.Event.EncounteredTime() }); },
+        });
+
+        UpdateSearch();
     }
+
     void SetResult(Utils::Async::Context context, std::vector<Content::EventID>&& data)
     {
         if (context->Cancelled) return;
@@ -73,7 +95,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
         if (std::shared_lock _(Lock); FilteredList.empty())
             return UpdateSearch();
 
-        AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
+        AsyncFilter.Run([this, table = Table.Prepare()](Utils::Async::Context context)
         {
             context->SetIndeterminate();
             std::vector<Content::EventID> data;
@@ -82,7 +104,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                 data = FilteredList;
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -103,7 +125,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
         else
             textSearch = true;
 
-        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, filters = Filters, sort = Sort, invert = SortInvert](Utils::Async::Context context) mutable
+        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, filters = Filters, table = Table.Prepare()](Utils::Async::Context context) mutable
         {
             context->SetIndeterminate();
             std::vector<Content::EventID> data;
@@ -135,11 +157,17 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                 });
             }
             CHECK_ASYNC;
-            if (textSearch)
+            if (table.HasFilterTerms() || textSearch)
             {
                 std::shared_lock _(Content::eventsLock);
-                std::erase_if(data, [query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](Content::EventID id)
+                std::erase_if(data, [&table, textSearch, query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](Content::EventID id)
                 {
+                    if (!table.Filter(id))
+                        return true;
+
+                    if (!textSearch)
+                        return false;
+
                     auto const& event = Content::events.at(id);
                     for (auto const& state : event.States)
                     {
@@ -166,7 +194,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                 });
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -200,50 +228,17 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
         filter("Dungeon", Filters.Dungeon);
         filter("Non-Event", Filters.NonEvent);
 
-        if (scoped::TableList("Table", 5))
+        if (scoped::TableList("Table", Table.GetColumnCount()))
         {
-            I::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)EventSort::ID);
-            I::TableSetupColumn("Map", ImGuiTableColumnFlags_WidthStretch, 0, (ImGuiID)EventSort::Map);
-            I::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)EventSort::Type);
-            I::TableSetupColumn("Title", ImGuiTableColumnFlags_WidthStretch, 0, (ImGuiID)EventSort::Title);
-            I::TableSetupColumn("Encountered", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending, 80, (ImGuiID)EventSort::EncounteredTime);
-            I::TableSetupScrollFreeze(0, 1);
-            I::TableHeadersRow();
-            HandleTableSort(Sort, SortInvert);
+            Table.DrawColumnHeaders();
 
             std::shared_lock __(Lock);
             ImGuiListClipper clipper;
             clipper.Begin(FilteredList.size());
             while (clipper.Step())
-            {
                 for (auto eventID : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
-                {
-                    scoped::WithID(eventID.Map << 17 | eventID.UID);
-
-                    std::shared_lock ___(Content::eventsLock);
-                    auto& event = Content::events.at(eventID);
-                    auto const* currentViewer = G::UI.GetCurrentViewer<EventViewer>();
-                    I::TableNextRow();
-
-                    I::TableNextColumn();
-                    I::SetNextItemAllowOverlap();
-                    I::Selectable(std::format("{}", eventID.UID).c_str(), currentViewer && currentViewer->EventID == eventID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
-                    if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
-                        EventViewer::Open(eventID, { .MouseButton = button });
-
-                    I::TableNextColumn();
-                    I::TextUnformatted(Utils::Encoding::ToUTF8(event.Map(Data::Content::QueryPurpose::Draw)).c_str());
-
-                    I::TableNextColumn();
-                    I::TextUnformatted(event.Type().c_str());
-
-                    I::TableNextColumn();
-                    I::TextUnformatted(Utils::Encoding::ToUTF8(event.Title()).c_str());
-
-                    I::TableNextColumn();
-                    Controls::Encounter({ event.EncounteredTime() });
-                }
-            }
+                    if (scoped::WithID(eventID.Map << 17 | eventID.UID))
+                        Table.DrawRow({ .EventID = eventID });
         }
     }
 };

@@ -2,6 +2,7 @@ export module GW2Viewer.UI.Viewers.StringListViewer;
 import GW2Viewer.Common;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Data.Encryption;
+import GW2Viewer.Data.Encryption.Text;
 import GW2Viewer.Data.Game;
 import GW2Viewer.UI.Controls;
 import GW2Viewer.UI.ImGui;
@@ -12,7 +13,6 @@ import GW2Viewer.UI.Windows.ContentSearch;
 import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Async;
 import GW2Viewer.Utils.Encoding;
-import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
 import GW2Viewer.Utils.Sort;
 import GW2Viewer.Utils.String;
@@ -26,8 +26,6 @@ export namespace GW2Viewer::UI::Viewers
 
 struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings", "Strings", Category::ListViewer }>
 {
-    StringListViewer(uint32 id, bool newTab) : ListViewer(id, newTab) { UpdateSearch(); }
-
     std::shared_mutex Lock;
     std::vector<uint32> FilteredList;
     Utils::Async::Scheduler AsyncFilter { true };
@@ -36,29 +34,69 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
     std::optional<std::pair<int32, int32>> FilterID;
     uint32 FilterRange { };
     struct { bool Unencrypted = true, Encrypted = true, Decrypted = true, Empty = true; } Filters;
-    enum class StringSort { ID, Text, DecryptionTime, Voice } Sort { StringSort::ID };
-    bool SortInvert { };
 
-    void SortList(Utils::Async::Context context, std::vector<uint32>& data, StringSort sort, bool invert)
+    struct DrawContext
     {
-        #define COMPARE(a, b) do { if (auto const result = (a) <=> (b); result != std::strong_ordering::equal) return result == std::strong_ordering::less; } while (false)
-        switch (sort)
+        uint32 StringID;
+        std::wstring const* String;
+        Data::Encryption::Status Status;
+        Data::Encryption::TextKeyInfo* KeyInfo = G::Game.Encryption.GetTextKeyInfo(StringID);
+
+        DrawContext(uint32 stringID) : StringID(stringID) { std::tie(String, Status) = G::Game.Text.Get(stringID); }
+    };
+    Controls::Table<uint32, decltype(FilteredList)&, DrawContext const&> Table { *this };
+
+    StringListViewer(uint32 id, bool newTab) : Base(id, newTab)
+    {
+        Table.SetShowFilterRow();
+        Table.AddColumn("ID",
         {
-            using Utils::Sort::ComplexSort;
-            using enum StringSort;
-            case ID:
-                std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; });
-                break;
-            case Text:
-                ComplexSort(data, invert, [](uint32 id)
+            .Width = 50,
+            .Filter = [](uint32 id) { return id; },
+            .Sort = [](decltype(FilteredList)& data, bool invert) { std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; }); },
+            .Draw = [](DrawContext const& context)
+            {
+                I::SetNextItemAllowOverlap();
+                I::Selectable(std::format("{}", context.StringID).c_str(), false, ImGuiSelectableFlags_SpanAllColumns);
+                if (scoped::PopupContextItem())
                 {
-                    auto [string, status] = G::Game.Text.Get(id);
-                    return string ? *string : L"";
-                });
-                break;
-            case DecryptionTime:
-                ComplexSort(data, invert, [](uint32 id) { return G::Game.Encryption.GetTextKeyInfo(id); }, [](uint32 a, uint32 b, auto const& aInfo, auto const& bInfo)
+                    static uint64 decryptionKey = 0;
+                    I::Text("Text: %s%s", GetStatusText(context.Status), context.String ? Utils::Encoding::ToUTF8(*context.String).c_str() : "");
+
+                    Controls::CopyButton("ID", context.StringID);
+                    I::SameLine();
+                    Controls::CopyButton("DataLink", G::UI.MakeDataLink(0x03, 0x100 + context.StringID));
+                    I::SameLine();
+                    Controls::CopyButton("Text", context.String ? *context.String : L"", context.String);
+
+                    if (I::InputScalar("Decryption Key", ImGuiDataType_U64, context.KeyInfo ? &context.KeyInfo->Key : &decryptionKey))
+                    {
+                        if (!context.KeyInfo)
+                            G::Game.Encryption.AddTextKeyInfo(context.StringID, { .Key = std::exchange(decryptionKey, 0) });
+                        G::Game.Text.WipeCache(context.StringID);
+                    }
+
+                    if (I::Button("Search for Content References"))
+                        G::Windows::ContentSearch.SearchForSymbolValue("StringID", context.StringID);
+                }
+            },
+        });
+        Table.AddColumn("Text",
+        {
+            .Width = -1,
+            .Filter = [](uint32 id) { auto [string, status] = G::Game.Text.Get(id); return string ? *string : L""; },
+            .Draw = [](DrawContext const& context) { I::Text("%s%s", GetStatusText(context.Status), Utils::String::SingleLined(context.String ? Utils::Encoding::ToUTF8(*context.String).c_str() : "").c_str()); },
+        });
+        Table.AddColumn("Decrypted",
+        {
+            .Width = 80,
+            .PreferSortDescending = true,
+            .Filter = [](uint32 id) { auto info = G::Game.Encryption.GetTextKeyInfo(id); return info ? info->Encounter.Time : Time::Point(); },
+            .Sort = [](decltype(FilteredList)& data, bool invert)
+            {
+                Utils::Sort::ComplexSort(data, invert, [](uint32 id) { return G::Game.Encryption.GetTextKeyInfo(id); }, [](uint32 a, uint32 b, auto const& aInfo, auto const& bInfo)
                 {
+                    #define COMPARE(a, b) do { if (auto const result = (a) <=> (b); result != std::strong_ordering::equal) return result == std::strong_ordering::less; } while (false)
                     if (aInfo && bInfo)
                     {
                         COMPARE(aInfo->Encounter.Time, bInfo->Encounter.Time);
@@ -68,10 +106,29 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
                         COMPARE((bool)aInfo, (bool)bInfo);
                     COMPARE(a, b);
                     return false;
+                    #undef COMPARE
                 });
-                break;
-            case Voice:
-                ComplexSort(data, invert, [](uint32 id) -> uint32
+            },
+            .Draw = [](DrawContext const& context)
+            {
+                if (context.KeyInfo)
+                    Controls::Encounter(context.KeyInfo->Encounter, { .TimeText = "Decrypted on" });
+            },
+        });
+        Table.AddColumn("Voice",
+        {
+            .Width = 80,
+            .Filter = [](uint32 id) -> std::decay_t<decltype(*G::Game.Text.GetVariants(id))>
+            {
+                if (auto const variants = G::Game.Text.GetVariants(id))
+                    return *variants;
+                if (auto const voice = G::Game.Text.GetVoice(id))
+                    return { voice };
+                return { };
+            },
+            .Sort = [](decltype(FilteredList)& data, bool invert)
+            {
+                Utils::Sort::ComplexSort(data, invert, [](uint32 id) -> uint32
                 {
                     if (auto const variants = G::Game.Text.GetVariants(id))
                         return variants->front();
@@ -79,11 +136,13 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
                         return voice;
                     return { };
                 });
-                break;
-            default: std::terminate();
-        }
-        #undef COMPARE
+            },
+            .Draw = [](DrawContext const& context){ Controls::TextVoiceButton(context.StringID, { .Selectable = true }); },
+        });
+
+        UpdateSearch();
     }
+
     void SetResult(Utils::Async::Context context, std::vector<uint32>&& data)
     {
         if (context->Cancelled) return;
@@ -96,7 +155,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
         if (std::shared_lock _(Lock); FilteredList.empty())
             return UpdateSearch();
 
-        AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
+        AsyncFilter.Run([this, table = Table.Prepare()](Utils::Async::Context context)
         {
             context->SetIndeterminate();
             std::vector<uint32> data;
@@ -105,7 +164,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
                 data = FilteredList;
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -126,7 +185,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
         else
             textSearch = true;
 
-        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, filters = Filters, sort = Sort, invert = SortInvert](Utils::Async::Context context) mutable
+        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, filters = Filters, table = Table.Prepare()](Utils::Async::Context context) mutable
         {
             context->SetIndeterminate();
             Utils::Thread::SleepUntil(100ms, [] { return G::Game.Text.IsLoaded(G::Config.Language); });
@@ -155,14 +214,14 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
                 });
             }
             CHECK_ASYNC;
-            if (textSearch)
+            if (table.HasFilterTerms() || textSearch)
             {
                 static std::mutex parallelLock;
                 std::unique_lock _(parallelLock);
                 static std::unordered_map<std::thread::id, std::vector<uint32>> parallelResults;
                 static std::mutex lock;
                 std::ranges::for_each(parallelResults | std::views::values, &std::vector<uint32>::clear);
-                std::for_each(std::execution::par_unseq, data.begin(), data.end(), [query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](uint32 stringID)
+                std::for_each(std::execution::par_unseq, data.begin(), data.end(), [&table, textSearch, query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](uint32 stringID)
                 {
                     thread_local auto& results = []() -> auto&
                     {
@@ -171,14 +230,21 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
                         container.reserve(10000);
                         return container;
                     }();
-                    if (auto const& [string, status] = G::Game.Text.GetNormalized(stringID); string && !string->empty() && string->contains(query))
-                        results.emplace_back(stringID);
+
+                    if (!table.Filter(stringID))
+                        return;
+
+                    if (textSearch)
+                        if (auto const& [string, status] = G::Game.Text.GetNormalized(stringID); !string || string->empty() || !string->contains(query))
+                            return;
+
+                    results.emplace_back(stringID);
                 });
                 CHECK_ASYNC;
                 data.assign_range(std::views::join(parallelResults | std::views::values));
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -239,64 +305,17 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
         filter("Decrypted", Filters.Decrypted);
         filter("Empty", Filters.Empty);
 
-        if (scoped::TableList("Table", 4))
+        if (scoped::TableList("Table", Table.GetColumnCount()))
         {
-            I::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)StringSort::ID);
-            I::TableSetupColumn("Text", ImGuiTableColumnFlags_WidthStretch, 0, (ImGuiID)StringSort::Text);
-            I::TableSetupColumn("Decrypted", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending, 80, (ImGuiID)StringSort::DecryptionTime);
-            I::TableSetupColumn("Voice", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending, 80, (ImGuiID)StringSort::Voice);
-            I::TableSetupScrollFreeze(0, 1);
-            I::TableHeadersRow();
-            HandleTableSort(Sort, SortInvert);
+            Table.DrawColumnHeaders();
 
             std::shared_lock __(Lock);
             ImGuiListClipper clipper;
             clipper.Begin(FilteredList.size());
             while (clipper.Step())
-            {
                 for (auto stringID : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
-                {
-                    scoped::WithID(stringID);
-
-                    auto info = G::Game.Encryption.GetTextKeyInfo(stringID);
-                    auto [string, status] = G::Game.Text.Get(stringID);
-                    I::TableNextRow();
-                    I::TableNextColumn();
-                    I::SetNextItemAllowOverlap();
-                    I::Selectable(std::format("{}", stringID).c_str(), false, ImGuiSelectableFlags_SpanAllColumns);
-                    if (scoped::PopupContextItem())
-                    {
-                        static uint64 decryptionKey = 0;
-                        I::Text("Text: %s%s", GetStatusText(status), string ? Utils::Encoding::ToUTF8(*string).c_str() : "");
-
-                        Controls::CopyButton("ID", stringID);
-                        I::SameLine();
-                        Controls::CopyButton("DataLink", G::UI.MakeDataLink(0x03, 0x100 + stringID));
-                        I::SameLine();
-                        Controls::CopyButton("Text", string ? *string : L"", string);
-
-                        if (I::InputScalar("Decryption Key", ImGuiDataType_U64, info ? &info->Key : &decryptionKey))
-                        {
-                            if (!info)
-                                info = G::Game.Encryption.AddTextKeyInfo(stringID, { .Key = std::exchange(decryptionKey, 0) });
-                            G::Game.Text.WipeCache(stringID);
-                        }
-
-                        if (I::Button("Search for Content References"))
-                            G::Windows::ContentSearch.SearchForSymbolValue("StringID", stringID);
-                    }
-
-                    I::TableNextColumn();
-                    I::Text("%s%s", GetStatusText(status), Utils::String::SingleLined(string ? Utils::Encoding::ToUTF8(*string).c_str() : "").c_str());
-
-                    I::TableNextColumn();
-                    if (info)
-                        Controls::Encounter(info->Encounter, { .TimeText = "Decrypted on" });
-
-                    I::TableNextColumn();
-                    Controls::TextVoiceButton(stringID, { .Selectable = true });
-                }
-            }
+                    if (scoped::WithID(stringID))
+                        Table.DrawRow(stringID);
         }
     }
 };

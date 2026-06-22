@@ -28,23 +28,6 @@ export namespace GW2Viewer::UI::Viewers
 struct ListViewerBase : Viewer
 {
     using Viewer::Viewer;
-};
-
-template<typename Self, ViewerRegistry::Info Info, auto& Config = ViewerRegistry::EmptyConfig>
-struct ListViewer : ListViewerBase, RegisterViewer<Self, Info, Config>
-{
-    using Base = ListViewer;
-
-    ListViewer(uint32 id, bool newTab) : ListViewerBase(id, newTab)
-    {
-        G::Viewers::ListViewers<Self>.emplace_back((Self*)this);
-    }
-    ~ListViewer() override
-    {
-        G::Viewers::ListViewers<Self>.remove((Self*)this);
-    }
-
-    std::string Title() override { return this->ViewerInfo.Title; }
 
     virtual void UpdateSort() = 0;
     virtual void UpdateSearch() = 0;
@@ -64,6 +47,23 @@ protected:
         }
         return false;
     }
+};
+
+template<typename Self, ViewerRegistry::Info Info, auto& Config = ViewerRegistry::EmptyConfig>
+struct ListViewer : ListViewerBase, RegisterViewer<Self, Info, Config>
+{
+    using Base = ListViewer;
+
+    ListViewer(uint32 id, bool newTab) : ListViewerBase(id, newTab)
+    {
+        G::Viewers::ListViewers<Self>.emplace_back((Self*)this);
+    }
+    ~ListViewer() override
+    {
+        G::Viewers::ListViewers<Self>.remove((Self*)this);
+    }
+
+    std::string Title() override { return this->ViewerInfo.Title; }
 };
 
 }

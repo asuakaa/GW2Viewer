@@ -67,16 +67,7 @@ void Database::CreateLoadOperations()
         },
         {
             .SharedMutex = &G::Game.Encryption.Mutex(),
-            .PostHandler = [=]
-            {
-                G::Viewers::ForEach<UI::Viewers::StringListViewer>([](UI::Viewers::StringListViewer& viewer)
-                {
-                    if (!viewer.FilterString.empty() && !viewer.FilterID || viewer.FilteredList.empty())
-                        viewer.UpdateSearch();
-                    else if (viewer.Sort == UI::Viewers::StringListViewer::StringSort::Text || viewer.Sort == UI::Viewers::StringListViewer::StringSort::DecryptionTime)
-                        viewer.UpdateSort();
-                });
-            },
+            .PostHandler = [] { G::Viewers::Notify(&UI::Viewers::StringListViewer::UpdateSearch); },
         });
     Load("Assets",
         "AssetType, AssetID, Key",

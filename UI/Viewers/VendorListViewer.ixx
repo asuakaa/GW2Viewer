@@ -1,8 +1,8 @@
 export module GW2Viewer.UI.Viewers.VendorListViewer;
 import GW2Viewer.Common;
-import GW2Viewer.Common.Time;
 import GW2Viewer.Content;
 import GW2Viewer.Content.Vendor;
+import GW2Viewer.Data.Content;
 import GW2Viewer.Data.Game;
 import GW2Viewer.UI.Controls;
 import GW2Viewer.UI.ImGui;
@@ -12,9 +12,7 @@ import GW2Viewer.UI.Viewers.VendorViewer;
 import GW2Viewer.UI.Viewers.ViewerRegistry;
 import GW2Viewer.Utils.Async;
 import GW2Viewer.Utils.Encoding;
-import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
-import GW2Viewer.Utils.Sort;
 import GW2Viewer.Utils.String;
 import std;
 #include "Macros.h"
@@ -24,8 +22,6 @@ export namespace GW2Viewer::UI::Viewers
 
 struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors", "Vendors", Category::ListViewer }>
 {
-    VendorListViewer(uint32 id, bool newTab) : Base(id, newTab) { UpdateSearch(); }
-
     std::shared_mutex Lock;
     std::vector<uint64> FilteredList;
     Utils::Async::Scheduler AsyncFilter { true };
@@ -33,31 +29,58 @@ struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors"
     std::string FilterString;
     std::optional<std::pair<int64, int64>> FilterID;
     uint64 FilterRange { };
-    enum class VendorSort { Hash, Name, TabNames, EncounteredTime } Sort { VendorSort::Hash };
-    bool SortInvert { };
 
-    static auto SortList(Utils::Async::Context context, std::vector<uint64>& data, VendorSort sort, bool invert)
+    struct DrawContext
     {
-        std::shared_lock _(Content::vendorsLock);
-        switch (sort)
+        uint64 VendorHash;
+        std::shared_lock<decltype(Content::vendorsLock)> Lock { Content::vendorsLock };
+        Content::Vendor const& Vendor = Content::vendors.at(VendorHash);
+    };
+    Controls::Table<uint64, decltype(FilteredList)&, DrawContext const&> Table { *this };
+
+    VendorListViewer(uint32 id, bool newTab) : Base(id, newTab)
+    {
+        Table.SetShowFilterRow();
+        Table.AddColumn("#",
         {
-            using Utils::Sort::ComplexSort;
-            using enum VendorSort;
-            case Hash:
-                std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; });
-                break;
-            case Name:
-                ComplexSort(data, invert, [](uint64 id) { return Content::vendors.at(id).Name(); });
-                break;
-            case TabNames:
-                ComplexSort(data, invert, [](uint64 id) { return Content::vendors.at(id).TabNames(); });
-                break;
-            case EncounteredTime:
-                ComplexSort(data, invert, [](uint64 id) { return Content::vendors.at(id).Encounter.Time; });
-                break;
-            default: std::terminate();
-        }
+            .Width = 50,
+            .Filter = [](uint64 id) { return id; },
+            .Sort = [](decltype(FilteredList)& data, bool invert) { std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; }); },
+            .Draw = [](DrawContext const& context)
+            {
+                auto const* currentViewer = G::UI.GetCurrentViewer<VendorViewer>();
+                I::SetNextItemAllowOverlap();
+                I::Selectable(std::format("  <c=#4>{}</c>", context.VendorHash).c_str(), currentViewer && currentViewer->VendorHash == context.VendorHash ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
+
+                Controls::CompletionMargin(context.Vendor.GetCompleteness());
+
+                if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+                    VendorViewer::Open(context.VendorHash, { .MouseButton = button });
+            },
+        });
+        Table.AddColumn("Name",
+        {
+            .Width = -1,
+            .Filter = [](uint64 id) { return Content::vendors.at(id).Name(); },
+            .Draw = [](DrawContext const& context) { I::TextUnformatted(context.Vendor.Name().c_str()); },
+        });
+        Table.AddColumn("Service Tabs",
+        {
+            .Width = -3,
+            .Filter = [](uint64 id) { return Content::vendors.at(id).TabNames(); },
+            .Draw = [](DrawContext const& context) { I::TextUnformatted(context.Vendor.TabNames().c_str()); },
+        });
+        Table.AddColumn("Encountered",
+        {
+            .Width = 80,
+            .PreferSortDescending = true,
+            .Filter = [](uint64 id) { return Content::vendors.at(id).Encounter.Time; },
+            .Draw = [](DrawContext const& context) { Controls::Encounter(context.Vendor.Encounter); },
+        });
+
+        UpdateSearch();
     }
+
     void SetResult(Utils::Async::Context context, std::vector<uint64>&& data)
     {
         if (context->Cancelled) return;
@@ -70,7 +93,7 @@ struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors"
         if (std::shared_lock _(Lock); FilteredList.empty())
             return UpdateSearch();
 
-        AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
+        AsyncFilter.Run([this, table = Table.Prepare()](Utils::Async::Context context)
         {
             context->SetIndeterminate();
             std::vector<uint64> data;
@@ -79,7 +102,7 @@ struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors"
                 data = FilteredList;
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -100,20 +123,28 @@ struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors"
         else
             textSearch = true;
 
-        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, sort = Sort, invert = SortInvert](Utils::Async::Context context) mutable
+        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, table = Table.Prepare()](Utils::Async::Context context) mutable
         {
             context->SetIndeterminate();
+            auto const limits = filter.value_or(std::pair { std::numeric_limits<int64>::min(), std::numeric_limits<int64>::max() });
             std::vector<uint64> data;
             CHECK_ASYNC;
-            if (textSearch)
             {
                 std::shared_lock _(Content::vendorsLock);
-                data.assign_range(Content::vendors | std::views::keys | std::views::filter([query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](uint64 hash)
+                data.assign_range(Content::vendors | std::views::filter([limits, &table, textSearch, query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](auto const& pair)
                 {
-                    auto const& vendor = Content::vendors.at(hash);
-                    if (auto const string = G::Game.Text.GetNormalized(vendor.NameTextID).first; string && !string->empty() && string->contains(query))
+                    if ((int64)pair.first < limits.first || (int64)pair.first > limits.second)
+                        return false;
+
+                    if (!table.Filter(pair.first))
+                        return false;
+
+                    if (!textSearch)
                         return true;
-                    for (auto const& tab : vendor.ServiceTabs)
+
+                    if (auto const string = G::Game.Text.GetNormalized(pair.second.NameTextID).first; string && !string->empty() && string->contains(query))
+                        return true;
+                    for (auto const& tab : pair.second.ServiceTabs)
                     {
                         if (auto const string = G::Game.Text.GetNormalized(tab.NameTextID).first; string && !string->empty() && string->contains(query))
                             return true;
@@ -127,16 +158,10 @@ struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors"
                         }
                     }
                     return false;
-                }));
-            }
-            else
-            {
-                auto limits = filter.value_or(std::pair { std::numeric_limits<int64>::min(), std::numeric_limits<int64>::max() });
-                std::shared_lock _(Content::vendorsLock);
-                data.assign_range(Content::vendors | std::views::filter([limits](auto const& pair) { return (int64)pair.first >= limits.first && (int64)pair.first <= limits.second; }) | std::views::keys);
+                }) | std::views::keys);
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -146,49 +171,17 @@ struct VendorListViewer : ListViewer<VendorListViewer, { ICON_FA_SACK " Vendors"
         if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
             UpdateSearch();
 
-        if (scoped::TableList("Table", 4))
+        if (scoped::TableList("Table", Table.GetColumnCount()))
         {
-            I::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)VendorSort::Hash);
-            I::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1, (ImGuiID)VendorSort::Name);
-            I::TableSetupColumn("Service Tabs", ImGuiTableColumnFlags_WidthStretch, 3, (ImGuiID)VendorSort::TabNames);
-            I::TableSetupColumn("Encountered", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending, 80, (ImGuiID)VendorSort::EncounteredTime);
-            I::TableSetupScrollFreeze(0, 1);
-            I::TableHeadersRow();
-            HandleTableSort(Sort, SortInvert);
+            Table.DrawColumnHeaders();
 
             std::shared_lock __(Lock);
             ImGuiListClipper clipper;
             clipper.Begin(FilteredList.size());
             while (clipper.Step())
-            {
                 for (auto vendorHash : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
-                {
-                    scoped::WithID(vendorHash);
-
-                    std::shared_lock ___(Content::vendorsLock);
-                    auto& vendor = Content::vendors.at(vendorHash);
-                    auto const* currentViewer = G::UI.GetCurrentViewer<VendorViewer>();
-                    I::TableNextRow();
-
-                    I::TableNextColumn();
-                    I::SetNextItemAllowOverlap();
-                    I::Selectable(std::format("  <c=#4>{}</c>", vendorHash).c_str(), currentViewer && currentViewer->VendorHash == vendorHash ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
-
-                    Controls::CompletionMargin(vendor.GetCompleteness());
-
-                    if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
-                        VendorViewer::Open(vendorHash, { .MouseButton = button });
-
-                    I::TableNextColumn();
-                    I::TextUnformatted(vendor.Name().c_str());
-
-                    I::TableNextColumn();
-                    I::TextUnformatted(vendor.TabNames().c_str());
-
-                    I::TableNextColumn();
-                    Controls::Encounter(vendor.Encounter);
-                }
-            }
+                    if (scoped::WithID(vendorHash))
+                        Table.DrawRow({ .VendorHash = vendorHash });
         }
     }
 };

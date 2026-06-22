@@ -11,6 +11,7 @@ export import :HexViewer;
 export import :MapLayout;
 export import :SearchFilterRange;
 export import :SearchInput;
+export import :Table;
 export import :Texture;
 export import :TypeInfo;
 export import :VoiceButton;

@@ -1,6 +1,5 @@
 export module GW2Viewer.UI.Viewers.MapCinematicListViewer;
 import GW2Viewer.Common;
-import GW2Viewer.Common.Time;
 import GW2Viewer.Content.MapCinematic;
 import GW2Viewer.Data.Game;
 import GW2Viewer.UI.Controls;
@@ -11,9 +10,7 @@ import GW2Viewer.UI.Viewers.ListViewer;
 import GW2Viewer.UI.Viewers.ViewerRegistry;
 import GW2Viewer.Utils.Async;
 import GW2Viewer.Utils.Encoding;
-import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
-import GW2Viewer.Utils.Sort;
 import GW2Viewer.Utils.String;
 import std;
 #include "Macros.h"
@@ -23,8 +20,6 @@ export namespace GW2Viewer::UI::Viewers
 
 struct MapCinematicListViewer : ListViewer<MapCinematicListViewer, { ICON_FA_CROSSHAIRS " MapCinematics", "MapCinematics", Category::ListViewer }>
 {
-    MapCinematicListViewer(uint32 id, bool newTab) : Base(id, newTab) { UpdateSearch(); }
-
     std::shared_mutex Lock;
     std::vector<uint64> FilteredList;
     Utils::Async::Scheduler AsyncFilter { true };
@@ -32,31 +27,56 @@ struct MapCinematicListViewer : ListViewer<MapCinematicListViewer, { ICON_FA_CRO
     std::string FilterString;
     std::optional<std::pair<int64, int64>> FilterID;
     uint64 FilterRange { };
-    enum class MapCinematicSort { Hash, UID, Text, EncounteredTime } Sort { MapCinematicSort::UID };
-    bool SortInvert { };
 
-    static auto SortList(Utils::Async::Context context, std::vector<uint64>& data, MapCinematicSort sort, bool invert)
+    struct DrawContext
     {
-        std::shared_lock _(Content::mapCinematicsLock);
-        switch (sort)
+        uint64 MapCinematicHash;
+        std::shared_lock<decltype(Content::mapCinematicsLock)> Lock { Content::mapCinematicsLock };
+        Content::MapCinematic const& MapCinematic = Content::mapCinematics.at(MapCinematicHash);
+    };
+    Controls::Table<uint64, decltype(FilteredList)&, DrawContext const&> Table { *this };
+
+    MapCinematicListViewer(uint32 id, bool newTab) : Base(id, newTab)
+    {
+        Table.SetShowFilterRow();
+        Table.AddColumn("#",
         {
-            using Utils::Sort::ComplexSort;
-            using enum MapCinematicSort;
-            case Hash:
-                std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; });
-                break;
-            case UID:
-                ComplexSort(data, invert, [](uint64 id) { return Content::mapCinematics.at(id).UID; });
-                break;
-            case Text:
-                ComplexSort(data, invert, [](uint64 id) { return Content::mapCinematics.at(id).Text(); });
-                break;
-            case EncounteredTime:
-                ComplexSort(data, invert, [](uint64 id) { return Content::mapCinematics.at(id).Encounter.Time; });
-                break;
-            default: std::terminate();
-        }
+            .Width = 50,
+            .Filter = [](uint64 id) { return id; },
+            .Sort = [](decltype(FilteredList)& data, bool invert) { std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; }); },
+            .Draw = [](DrawContext const& context)
+            {
+                auto const* currentViewer = G::UI.GetCurrentViewer<MapCinematicViewer>();
+                I::SetNextItemAllowOverlap();
+                I::Selectable(std::format("<c=#4>{}</c>", context.MapCinematicHash).c_str(), currentViewer && currentViewer->MapCinematicHash == context.MapCinematicHash ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
+
+                if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+                    MapCinematicViewer::Open(context.MapCinematicHash, { .MouseButton = button });
+            },
+        });
+        Table.AddColumn("~UID",
+        {
+            .Width = 50,
+            .Filter = [](uint64 id) { return Content::mapCinematics.at(id).UID; },
+            .Draw = [](DrawContext const& context) { I::Text("<c=#8>%u</c>", context.MapCinematic.UID); },
+        });
+        Table.AddColumn("Text",
+        {
+            .Width = -1,
+            .Filter = [](uint64 id) { return Content::mapCinematics.at(id).Text(); },
+            .Draw = [](DrawContext const& context) { I::TextUnformatted(context.MapCinematic.Text().c_str()); },
+        });
+        Table.AddColumn("Encountered",
+        {
+            .Width = 80,
+            .PreferSortDescending = true,
+            .Filter = [](uint64 id) { return Content::mapCinematics.at(id).Encounter.Time; },
+            .Draw = [](DrawContext const& context){ Controls::Encounter(context.MapCinematic.Encounter); },
+        });
+
+        UpdateSearch();
     }
+
     void SetResult(Utils::Async::Context context, std::vector<uint64>&& data)
     {
         if (context->Cancelled) return;
@@ -69,7 +89,7 @@ struct MapCinematicListViewer : ListViewer<MapCinematicListViewer, { ICON_FA_CRO
         if (std::shared_lock _(Lock); FilteredList.empty())
             return UpdateSearch();
 
-        AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
+        AsyncFilter.Run([this, table = Table.Prepare()](Utils::Async::Context context)
         {
             context->SetIndeterminate();
             std::vector<uint64> data;
@@ -78,7 +98,7 @@ struct MapCinematicListViewer : ListViewer<MapCinematicListViewer, { ICON_FA_CRO
                 data = FilteredList;
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -99,37 +119,39 @@ struct MapCinematicListViewer : ListViewer<MapCinematicListViewer, { ICON_FA_CRO
         else
             textSearch = true;
 
-        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, sort = Sort, invert = SortInvert](Utils::Async::Context context) mutable
+        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, table = Table.Prepare()](Utils::Async::Context context) mutable
         {
             context->SetIndeterminate();
+            auto const limits = filter.value_or(std::pair { std::numeric_limits<int64>::min(), std::numeric_limits<int64>::max() });
             std::vector<uint64> data;
             CHECK_ASYNC;
-            if (textSearch)
             {
                 std::shared_lock _(Content::mapCinematicsLock);
-                data.assign_range(Content::mapCinematics | std::views::keys | std::views::filter([query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](uint64 hash)
+                data.assign_range(Content::mapCinematics | std::views::filter([limits, &table, textSearch, query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](auto const& pair)
                 {
-                    auto const& mapCinematic = Content::mapCinematics.at(hash);
-                    for (auto const& group : mapCinematic.Groups)
+                    if (!((int64)pair.first >= limits.first && (int64)pair.first <= limits.second || (int64)pair.second.UID >= limits.first && (int64)pair.second.UID <= limits.second))
+                        return false;
+
+                    if (!table.Filter(pair.first))
+                        return false;
+
+                    if (!textSearch)
+                        return true;
+
+                    for (auto const& group : pair.second.Groups)
                     {
                         if (auto const string = G::Game.Text.GetNormalized(group.TextID).first; string && !string->empty() && string->contains(query))
                             return true;
 
-                        for (auto const& object : group.Objects.GetSpan(mapCinematic.Objects))
+                        for (auto const& object : group.Objects.GetSpan(pair.second.Objects))
                             if (auto const string = G::Game.Text.GetNormalized(object.TextID).first; string && !string->empty() && string->contains(query))
                                 return true;
                     }
                     return false;
-                }));
-            }
-            else
-            {
-                auto limits = filter.value_or(std::pair { std::numeric_limits<int64>::min(), std::numeric_limits<int64>::max() });
-                std::shared_lock _(Content::mapCinematicsLock);
-                data.assign_range(Content::mapCinematics | std::views::filter([limits](auto const& pair) { return (int64)pair.first >= limits.first && (int64)pair.first <= limits.second || (int64)pair.second.UID >= limits.first && (int64)pair.second.UID <= limits.second; }) | std::views::keys);
+                }) | std::views::keys);
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -147,47 +169,17 @@ struct MapCinematicListViewer : ListViewer<MapCinematicListViewer, { ICON_FA_CRO
                 UpdateSearch();
         }
 
-        if (scoped::TableList("Table", 4))
+        if (scoped::TableList("Table", Table.GetColumnCount()))
         {
-            I::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)MapCinematicSort::Hash);
-            I::TableSetupColumn("~UID", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)MapCinematicSort::UID);
-            I::TableSetupColumn("Text", ImGuiTableColumnFlags_WidthStretch, 0, (ImGuiID)MapCinematicSort::Text);
-            I::TableSetupColumn("Encountered", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending, 80, (ImGuiID)MapCinematicSort::EncounteredTime);
-            I::TableSetupScrollFreeze(0, 1);
-            I::TableHeadersRow();
-            HandleTableSort(Sort, SortInvert);
+            Table.DrawColumnHeaders();
 
             std::shared_lock __(Lock);
             ImGuiListClipper clipper;
             clipper.Begin(FilteredList.size());
             while (clipper.Step())
-            {
                 for (auto mapCinematicHash : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
-                {
-                    scoped::WithID(mapCinematicHash);
-
-                    std::shared_lock ___(Content::mapCinematicsLock);
-                    auto& mapCinematic = Content::mapCinematics.at(mapCinematicHash);
-                    auto const* currentViewer = G::UI.GetCurrentViewer<MapCinematicViewer>();
-                    I::TableNextRow();
-
-                    I::TableNextColumn();
-                    I::SetNextItemAllowOverlap();
-                    I::Selectable(std::format("<c=#4>{}</c>", mapCinematicHash).c_str(), currentViewer && currentViewer->MapCinematicHash == mapCinematicHash ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
-
-                    if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
-                        MapCinematicViewer::Open(mapCinematicHash, { .MouseButton = button });
-
-                    I::TableNextColumn();
-                    I::Text("<c=#8>%u</c>", mapCinematic.UID);
-
-                    I::TableNextColumn();
-                    I::TextUnformatted(mapCinematic.Text().c_str());
-
-                    I::TableNextColumn();
-                    Controls::Encounter(mapCinematic.Encounter);
-                }
-            }
+                    if (scoped::WithID(mapCinematicHash))
+                        Table.DrawRow({ .MapCinematicHash = mapCinematicHash });
         }
     }
 };

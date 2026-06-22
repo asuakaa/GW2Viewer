@@ -27,4 +27,10 @@ auto ExpDecayChase(T& current, T const& target, float decay, float threshold)
     return current = ExpDecay(current, target, decay);
 }
 
+template<typename T>
+bool InRange(T value, T reference, T range)
+{
+    return (value >= reference ? value - reference : reference - value) <= range;
+}
+
 }

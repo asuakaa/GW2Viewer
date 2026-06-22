@@ -65,6 +65,23 @@ auto Uppercased(std::wstring_view str)
     return result;
 }
 
+bool ContainsCS(std::string_view haystack, std::string_view needle)
+{
+    return haystack.contains(needle);
+}
+bool ContainsCS(std::wstring_view haystack, std::wstring_view needle)
+{
+    return haystack.contains(needle);
+}
+bool ContainsCI(std::string_view haystack, std::string_view needle)
+{
+    return !std::ranges::search(haystack, needle, { }, (int(*)(int))std::toupper, (int(*)(int))std::toupper).empty();
+}
+bool ContainsCI(std::wstring_view haystack, std::wstring_view needle)
+{
+    return !std::ranges::search(haystack, needle, { }, (int(*)(int))std::toupper, (int(*)(int))std::toupper).empty();
+}
+
 inline std::vector<std::string_view> Split(std::string_view s, std::string_view delimiter)
 {
     size_t pos_start = 0, pos_end, delim_len = delimiter.length();

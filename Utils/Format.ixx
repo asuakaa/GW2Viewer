@@ -101,6 +101,44 @@ export namespace GW2Viewer::Utils::Format
 {
 
 template<typename Rep, typename Period>
+std::string DurationLong(std::chrono::duration<Rep, Period> duration)
+{
+    using namespace std::chrono;
+
+    constexpr std::tuple units { years(1), months(1), days(1), 1h, 1min, 1s, 1ms, 1us, 1ns };
+
+    std::string result;
+
+    auto suffix = Visitor::Overloaded
+    {
+        [](auto duration, years const&) { return duration.count() == 1 ? "year" : "years"; },
+        [](auto duration, months const&) { return duration.count() == 1 ? "month" : "months"; },
+        [](auto duration, days const&) { return duration.count() == 1 ? "day" : "days"; },
+        [](auto duration, hours const&) { return duration.count() == 1 ? "hour" : "hours"; },
+        [](auto duration, minutes const&) { return duration.count() == 1 ? "minute" : "minutes"; },
+        [](auto duration, seconds const&) { return duration.count() == 1 ? "second" : "seconds"; },
+        [](auto, auto const& unit) { return std::format("{:%q}", unit); }
+    };
+    auto append = [&]<typename T>(T const& unit)
+    {
+        if constexpr (std::ratio_less_equal_v<Period, typename T::period>)
+        {
+            if (auto const val = duration_cast<T>(duration); val.count() > 0)
+            {
+                result += std::format("{} {} ", val.count(), suffix(val, unit));
+                duration -= val;
+            }
+        }
+    };
+
+    std::apply([&](auto const&... unit) { (append(unit), ...); }, units);
+
+    if (!result.empty())
+        result.pop_back();
+    return result;
+}
+
+template<typename Rep, typename Period>
 std::string DurationShort(std::chrono::duration<Rep, Period> duration)
 {
     using namespace std::chrono;
@@ -114,7 +152,7 @@ std::string DurationShort(std::chrono::duration<Rep, Period> duration)
         [](years const&) { return "y"; },
         [](months const&) { return "mo"; },
         [](minutes const&) { return "m"; },
-        [](auto const& duration) { return std::format("{:%q}", duration); }
+        [](auto const& unit) { return std::format("{:%q}", unit); }
     };
     auto append = [&]<typename T>(T const& unit)
     {
@@ -167,7 +205,7 @@ std::string DateTimeFull(Time::Point time)
 
 std::string DateTimeFullLocal(Time::Point time)
 {
-    try { return std::format("{:%F %T}", std::chrono::floor<std::chrono::seconds>(std::chrono::current_zone()->to_local(time))); }
+    try { return std::format("{:%F %T}", Time::ToSecs(Time::ToLocal(time))); }
     catch (...)
     {
         auto const timestamp = Time::ToTimestamp(time);

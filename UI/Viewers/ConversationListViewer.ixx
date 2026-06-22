@@ -1,6 +1,5 @@
 export module GW2Viewer.UI.Viewers.ConversationListViewer;
 import GW2Viewer.Common;
-import GW2Viewer.Common.Time;
 import GW2Viewer.Content.Conversation;
 import GW2Viewer.Data.Game;
 import GW2Viewer.UI.Controls;
@@ -11,9 +10,7 @@ import GW2Viewer.UI.Viewers.ListViewer;
 import GW2Viewer.UI.Viewers.ViewerRegistry;
 import GW2Viewer.Utils.Async;
 import GW2Viewer.Utils.Encoding;
-import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
-import GW2Viewer.Utils.Sort;
 import GW2Viewer.Utils.String;
 import std;
 #include "Macros.h"
@@ -23,8 +20,6 @@ export namespace GW2Viewer::UI::Viewers
 
 struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COMMENT_CHECK " Conversations", "Conversations", Category::ListViewer }>
 {
-    ConversationListViewer(uint32 id, bool newTab) : Base(id, newTab) { UpdateSearch(); }
-
     std::shared_mutex Lock;
     std::vector<uint32> FilteredList;
     Utils::Async::Scheduler AsyncFilter { true };
@@ -32,34 +27,64 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
     std::string FilterString;
     std::optional<std::pair<int32, int32>> FilterID;
     uint32 FilterRange { };
-    enum class ConversationSort { GenID, UID, StartingSpeakerName, StartingStateText, EncounteredTime } Sort { ConversationSort::UID };
-    bool SortInvert { };
 
-    static auto SortList(Utils::Async::Context context, std::vector<uint32>& data, ConversationSort sort, bool invert)
+    struct DrawContext
     {
-        std::shared_lock _(Content::conversationsLock);
-        switch (sort)
+        uint32 ConversationID;
+        std::shared_lock<decltype(Content::conversationsLock)> Lock { Content::conversationsLock };
+        Content::Conversation const& Conversation = Content::conversations.at(ConversationID);
+    };
+    Controls::Table<uint32, decltype(FilteredList)&, DrawContext const&> Table { *this };
+
+    ConversationListViewer(uint32 id, bool newTab) : Base(id, newTab)
+    {
+        Table.SetShowFilterRow();
+        Table.AddColumn("#",
         {
-            using Utils::Sort::ComplexSort;
-            using enum ConversationSort;
-            case GenID:
-                std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; });
-                break;
-            case UID:
-                ComplexSort(data, invert, [](uint32 id) { return Content::conversations.at(id).UID; });
-                break;
-            case StartingSpeakerName:
-                ComplexSort(data, invert, [](uint32 id) { return Content::conversations.at(id).StartingSpeakerName(); });
-                break;
-            case StartingStateText:
-                ComplexSort(data, invert, [](uint32 id) { return Content::conversations.at(id).StartingStateText(); });
-                break;
-            case EncounteredTime:
-                ComplexSort(data, invert, [](uint32 id) { return Content::conversations.at(id).Encounter.Time; });
-                break;
-            default: std::terminate();
-        }
+            .Width = 50,
+            .Filter = [](uint32 id) { return id; },
+            .Sort = [](decltype(FilteredList)& data, bool invert) { std::ranges::sort(data, [invert](auto a, auto b) { return a < b ^ invert; }); },
+            .Draw = [](DrawContext const& context)
+            {
+                auto const* currentViewer = G::UI.GetCurrentViewer<ConversationViewer>();
+                I::SetNextItemAllowOverlap();
+                I::Selectable(std::format("  <c=#4>{}</c>", context.ConversationID).c_str(), currentViewer && currentViewer->ConversationID == context.ConversationID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
+
+                Controls::CompletionMargin(context.Conversation.GetCompleteness());
+
+                if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+                    ConversationViewer::Open(context.ConversationID, { .MouseButton = button });
+            },
+        });
+        Table.AddColumn("~UID",
+        {
+            .Width = 50,
+            .Filter = [](uint32 id) { return Content::conversations.at(id).UID; },
+            .Draw = [](DrawContext const& context) { I::Text("<c=#8>%u</c>", context.Conversation.UID); },
+        });
+        Table.AddColumn("Speaker Name",
+        {
+            .Width = -1,
+            .Filter = [](uint32 id) { return Content::conversations.at(id).StartingSpeakerName(); },
+            .Draw = [](DrawContext const& context) { I::TextUnformatted(context.Conversation.StartingSpeakerName().c_str()); },
+        });
+        Table.AddColumn("Start State Text",
+        {
+            .Width = -1,
+            .Filter = [](uint32 id) { return Content::conversations.at(id).StartingStateText(); },
+            .Draw = [](DrawContext const& context) { I::TextUnformatted(context.Conversation.StartingStateText().c_str()); },
+        });
+        Table.AddColumn("Encountered",
+        {
+            .Width = 80,
+            .PreferSortDescending = true,
+            .Filter = [](uint32 id) { return Content::conversations.at(id).Encounter.Time; },
+            .Draw = [](DrawContext const& context){ Controls::Encounter(context.Conversation.Encounter); },
+        });
+
+        UpdateSearch();
     }
+
     void SetResult(Utils::Async::Context context, std::vector<uint32>&& data)
     {
         if (context->Cancelled) return;
@@ -72,7 +97,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
         if (std::shared_lock _(Lock); FilteredList.empty())
             return UpdateSearch();
 
-        AsyncFilter.Run([this, sort = Sort, invert = SortInvert](Utils::Async::Context context)
+        AsyncFilter.Run([this, table = Table.Prepare()](Utils::Async::Context context)
         {
             context->SetIndeterminate();
             std::vector<uint32> data;
@@ -81,7 +106,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
                 data = FilteredList;
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -102,18 +127,26 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
         else
             textSearch = true;
 
-        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, sort = Sort, invert = SortInvert](Utils::Async::Context context) mutable
+        AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, table = Table.Prepare()](Utils::Async::Context context) mutable
         {
             context->SetIndeterminate();
+            auto const limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
             std::vector<uint32> data;
             CHECK_ASYNC;
-            if (textSearch)
             {
                 std::shared_lock _(Content::conversationsLock);
-                data.assign_range(Content::conversations | std::views::keys | std::views::filter([query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](uint32 id)
+                data.assign_range(Content::conversations | std::views::filter([limits, &table, textSearch, query = Utils::String::Uppercased(Utils::Encoding::FromUTF8(string))](auto const& pair)
                 {
-                    auto const& conversation = Content::conversations.at(id);
-                    for (auto const& state : conversation.States)
+                    if (!((int32)pair.first >= limits.first && (int32)pair.first <= limits.second || (int32)pair.second.UID >= limits.first && (int32)pair.second.UID <= limits.second))
+                        return false;
+
+                    if (!table.Filter(pair.first))
+                        return false;
+
+                    if (!textSearch)
+                        return true;
+
+                    for (auto const& state : pair.second.States)
                     {
                         if (auto const string = G::Game.Text.GetNormalized(state.TextID).first; string && !string->empty() && string->contains(query))
                             return true;
@@ -124,16 +157,10 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
                                 return true;
                     }
                     return false;
-                }));
-            }
-            else
-            {
-                auto limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
-                std::shared_lock _(Content::conversationsLock);
-                data.assign_range(Content::conversations | std::views::filter([limits](auto const& pair) { return (int32)pair.first >= limits.first && (int32)pair.first <= limits.second || (int32)pair.second.UID >= limits.first && (int32)pair.second.UID <= limits.second; }) | std::views::keys);
+                }) | std::views::keys);
             }
             CHECK_ASYNC;
-            SortList(context, data, sort, invert);
+            table.Sort(data);
             SetResult(context, std::move(data));
         });
     }
@@ -151,53 +178,17 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
                 UpdateSearch();
         }
 
-        if (scoped::TableList("Table", 5))
+        if (scoped::TableList("Table", Table.GetColumnCount()))
         {
-            I::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)ConversationSort::GenID);
-            I::TableSetupColumn("~UID", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)ConversationSort::UID);
-            I::TableSetupColumn("Speaker Name", ImGuiTableColumnFlags_WidthStretch, 0, (ImGuiID)ConversationSort::StartingSpeakerName);
-            I::TableSetupColumn("Start State Text", ImGuiTableColumnFlags_WidthStretch, 0, (ImGuiID)ConversationSort::StartingStateText);
-            I::TableSetupColumn("Encountered", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_PreferSortDescending, 80, (ImGuiID)ConversationSort::EncounteredTime);
-            I::TableSetupScrollFreeze(0, 1);
-            I::TableHeadersRow();
-            HandleTableSort(Sort, SortInvert);
+            Table.DrawColumnHeaders();
 
             std::shared_lock __(Lock);
             ImGuiListClipper clipper;
             clipper.Begin(FilteredList.size());
             while (clipper.Step())
-            {
                 for (auto conversationID : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
-                {
-                    scoped::WithID(conversationID);
-
-                    std::shared_lock ___(Content::conversationsLock);
-                    auto& conversation = Content::conversations.at(conversationID);
-                    auto const* currentViewer = G::UI.GetCurrentViewer<ConversationViewer>();
-                    I::TableNextRow();
-
-                    I::TableNextColumn();
-                    I::SetNextItemAllowOverlap();
-                    I::Selectable(std::format("  <c=#4>{}</c>", conversationID).c_str(), currentViewer && currentViewer->ConversationID == conversationID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
-
-                    Controls::CompletionMargin(conversation.GetCompleteness());
-
-                    if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
-                        ConversationViewer::Open(conversationID, { .MouseButton = button });
-
-                    I::TableNextColumn();
-                    I::Text("<c=#8>%u</c>", conversation.UID);
-
-                    I::TableNextColumn();
-                    I::TextUnformatted(conversation.StartingSpeakerName().c_str());
-
-                    I::TableNextColumn();
-                    I::TextUnformatted(conversation.StartingStateText().c_str());
-
-                    I::TableNextColumn();
-                    Controls::Encounter(conversation.Encounter);
-                }
-            }
+                    if (scoped::WithID(conversationID))
+                        Table.DrawRow({ .ConversationID = conversationID });
         }
     }
 };

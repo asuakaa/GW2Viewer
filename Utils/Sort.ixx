@@ -8,7 +8,8 @@ template<typename Index, typename ComplexIndex>
 auto defaultComplexSortComparison(Index const a, Index const b, ComplexIndex const& aTransformed, ComplexIndex const& bTransformed) -> bool
 {
     #define COMPARE(a, b) do { if (auto const result = (a) <=> (b); result != std::strong_ordering::equal) return result == std::strong_ordering::less; } while (false)
-    COMPARE(aTransformed, bTransformed);
+    if constexpr (std::three_way_comparable<ComplexIndex const>)
+        COMPARE(aTransformed, bTransformed);
     if constexpr (std::three_way_comparable<Index const>)
         COMPARE(a, b);
     return false;
