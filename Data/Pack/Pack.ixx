@@ -29,12 +29,12 @@ class StringBase
     PtrBase<CharT, PointerType> m_pointer;
 
 public:
-    [[nodiscard]] bool empty() const { return m_pointer; }
+    [[nodiscard]] bool empty() const { return !m_pointer; }
     [[nodiscard]] CharT* data() const { return m_pointer.get(); }
 
-    [[nodiscard]] operator bool() const { return empty(); }
+    [[nodiscard]] operator bool() const { return !empty(); }
 
-    [[nodiscard]] operator std::basic_string_view<CharT>() const { return data(); }
+    [[nodiscard]] operator std::basic_string_view<CharT>() const { return !empty() ? data() : std::basic_string_view<CharT> { nullptr, 0 }; }
 };
 template<typename PointerType = int64> using String = StringBase<char, PointerType>;
 template<typename PointerType = int64> using WString = StringBase<wchar_t, PointerType>;

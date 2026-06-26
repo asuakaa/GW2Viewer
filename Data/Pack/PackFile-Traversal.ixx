@@ -238,7 +238,7 @@ public:
     {
         switch (GetElementField().UnderlyingType)
         {
-            case UnderlyingTypes::String: return m_x64 ? Get<String<int64>>().data() : Get<String<int32>>().data();
+            case UnderlyingTypes::String: return m_x64 ? (std::string_view)Get<String<int64>>() : Get<String<int32>>();
             default: throw std::exception("FieldIterator::operator std::string_view() called for a field of non-string type");
         }
     }
@@ -247,7 +247,7 @@ public:
     {
         switch (GetElementField().UnderlyingType)
         {
-            case UnderlyingTypes::WString: return m_x64 ? Get<WString<int64>>().data() : Get<WString<int32>>().data();
+            case UnderlyingTypes::WString: return m_x64 ? (std::wstring_view)Get<WString<int64>>() : Get<WString<int32>>();
             default: throw std::exception("FieldIterator::operator std::wstring_view() called for a field of non-wstring type");
         }
     }
