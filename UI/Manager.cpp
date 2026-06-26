@@ -82,6 +82,7 @@ void Manager::Load()
     {
         return G::Game.Texture.Load(pathTextures / filename);
     };
+    Textures.Transparency = loadTexture("Transparency.png");
     Textures.WindowShadow = loadTexture("WindowShadow.png");
 
     ImVec4* colors = I::GetStyle().Colors;

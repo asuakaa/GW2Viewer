@@ -9,6 +9,7 @@ export import :FileButton;
 export import :FilteredComboBox;
 export import :HexViewer;
 export import :MapLayout;
+export import :Model;
 export import :SearchFilterRange;
 export import :SearchInput;
 export import :Table;

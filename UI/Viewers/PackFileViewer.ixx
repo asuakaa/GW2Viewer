@@ -7,6 +7,7 @@ import GW2Viewer.Common.Token64;
 import GW2Viewer.Data.Game;
 import GW2Viewer.Data.Pack;
 import GW2Viewer.Data.Pack.PackFile;
+import GW2Viewer.Data.Model;
 import GW2Viewer.UI.Controls;
 import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Viewers.FileViewer;
@@ -598,6 +599,23 @@ float4 main(PS_INPUT input) : SV_Target
 
         if (initViewportOffset)
             ViewportOffset = layers[0].ContentsRect.GetCenter() - viewportSize * 0.5f;
+    }
+};
+
+template<>
+struct PackFileChunkPreview<fcc::MODL> : RegisterPackFileChunkPreview<fcc::MODL>, PackFileChunkPreviewBase
+{
+    UI::Controls::Model Model { true };
+    bool Loaded = false;
+
+    void DrawPreview(Data::Pack::Layout::Traversal::QueryChunk const& chunk) override
+    {
+        if (!Loaded)
+        {
+            Loaded = true;
+            Model.Load(chunk.File);
+        }
+        Model.Draw({ .UI = true });
     }
 };
 

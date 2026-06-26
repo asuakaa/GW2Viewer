@@ -81,6 +81,14 @@ struct PackFile
     using ChunkIterator = ChunkIteratorBase<PackFileChunk>;
     using ConstChunkIterator = ChunkIteratorBase<PackFileChunk const>;
 
+    [[nodiscard]] bool HasChunk(fcc magic) const
+    {
+        for (auto const& chunk : *this)
+            if (chunk.Header.Magic == magic)
+                return true;
+        return false;
+    }
+
     [[nodiscard]] PackFileChunk const& GetFirstChunk() const { return *begin(); }
     [[nodiscard]] PackFileChunk const& GetChunk(fcc magic) const
     {

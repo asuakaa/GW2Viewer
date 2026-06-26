@@ -58,6 +58,13 @@ struct Degrees
     operator bool() const { return m_degrees != 0.0f; }
     operator float() const { return m_degrees; }
 
+    auto  operator<=>(float degrees) const { return m_degrees <=> degrees; }
+    auto   operator==(float degrees) const { return m_degrees == degrees; }
+    Degrees operator+(float degrees) const { return m_degrees + degrees; }
+    Degrees operator-(float degrees) const { return m_degrees - degrees; }
+    Degrees operator*(float scalar) const { return m_degrees * scalar; }
+    Degrees operator/(float scalar) const { return m_degrees / scalar; }
+
 private:
     float m_degrees = 0.0f;
 };
@@ -75,9 +82,33 @@ struct Radians
     operator bool() const { return m_radians != 0.0f; }
     operator float() const { return m_radians; }
 
+    auto  operator<=>(float radians) const { return m_radians <=> radians; }
+    auto   operator==(float radians) const { return m_radians == radians; }
+    Radians operator+(float radians) const { return m_radians + radians; }
+    Radians operator-(float radians) const { return m_radians - radians; }
+    Radians operator*(float scalar) const { return m_radians * scalar; }
+    Radians operator/(float scalar) const { return m_radians / scalar; }
+
 private:
     float m_radians = 0.0f;
 };
 Degrees::Degrees(Radians const& radians) : m_degrees(radians.GetDegrees()) { }
+auto  operator<=>(Degrees a, Degrees b) { return a <=> b.GetDegrees(); }
+auto   operator==(Degrees a, Degrees b) { return a == b.GetDegrees(); }
+Degrees operator+(Degrees a, Degrees b) { return a + b.GetDegrees(); }
+Degrees operator-(Degrees a, Degrees b) { return a - b.GetDegrees(); }
+auto  operator<=>(Degrees a, Radians b) { return a <=> b.GetDegrees(); }
+auto   operator==(Degrees a, Radians b) { return a == b.GetDegrees(); }
+Degrees operator+(Degrees a, Radians b) { return a + b.GetDegrees(); }
+Degrees operator-(Degrees a, Radians b) { return a - b.GetDegrees(); }
+auto  operator<=>(Radians a, Degrees b) { return a <=> b.GetRadians(); }
+auto   operator==(Radians a, Degrees b) { return a == b.GetRadians(); }
+Radians operator+(Radians a, Degrees b) { return a + b.GetRadians(); }
+Radians operator-(Radians a, Degrees b) { return a - b.GetRadians(); }
+auto  operator<=>(Radians a, Radians b) { return a <=> b.GetRadians(); }
+auto   operator==(Radians a, Radians b) { return a == b.GetRadians(); }
+Radians operator+(Radians a, Radians b) { return a + b.GetRadians(); }
+Radians operator-(Radians a, Radians b) { return a - b.GetRadians(); }
+template<typename T> concept Angle = std::is_same_v<T, Degrees> || std::is_same_v<T, Radians>;
 
 }

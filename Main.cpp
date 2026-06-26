@@ -124,7 +124,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(hwnd);
-    ImGui_ImplDX11_Init(G::Services::Graphics.Device, G::Services::Graphics.DeviceContext);
+    ImGui_ImplDX11_Init(G::Services::Graphics.Device, G::Services::Graphics.Context);
 
     G::Config.Load();
     G::UI.Load();
