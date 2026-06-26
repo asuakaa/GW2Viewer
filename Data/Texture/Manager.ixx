@@ -1,7 +1,6 @@
 export module GW2Viewer.Data.Texture.Manager;
 import GW2Viewer.Common;
 import GW2Viewer.Data.Texture;
-import GW2Viewer.Services.Graphics;
 import std;
 import <concurrentqueue/blockingconcurrentqueue.h>;
 
@@ -11,20 +10,10 @@ export namespace GW2Viewer::Data::Texture
 class Manager
 {
 public:
-    TextureEntry const* Get(uint32 fileID)
-    {
-        std::scoped_lock _(m_mutex);
-        if (auto const itr = m_textures.find(fileID); itr != m_textures.end())
-        {
-            auto texture = itr->second.get();
-            texture->UpdateUnloadTime();
-            return texture;
-        }
-
-        return nullptr;
-    }
+    TextureEntry const* Get(uint32 fileID, LoadTextureOptions const& options = { });
+    TextureEntry const* GetEntry(uint32 fileID);
     std::unique_ptr<Texture> Create(uint32 width, uint32 height, void const* data = nullptr);
-    void Load(uint32 fileID, LoadTextureOptions const& options = { });
+    TextureEntry const* Load(uint32 fileID, LoadTextureOptions const& options = { });
     uint32 Load(std::filesystem::path const& localFilePath, LoadTextureOptions const& options = { });
     void UploadToGPU();
     void StopLoading()

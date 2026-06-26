@@ -32,9 +32,7 @@ bool Texture(uint32 textureFileID, TextureOptions const& options = { })
         if (auto const file = G::Game.Archive.GetFileEntry(textureFileID))
             textureFileID = file->GetBestVersion().ID;
 
-    if (auto const texture = G::Game.Texture.Get(textureFileID); !texture || texture->TextureLoadingState == Data::Texture::TextureEntry::TextureLoadingStates::NotLoaded)
-        G::Game.Texture.Load(textureFileID, { .DataSource = options.Data });
-    else if (texture && texture->Texture && texture->Texture->Handle.GetTexID())
+    if (auto const texture = G::Game.Texture.Get(textureFileID, { .DataSource = options.Data }))
     {
         ImVec2 const fullSize { (float)texture->Texture->Width, (float)texture->Texture->Height };
         ImVec2 offset { };

@@ -140,9 +140,7 @@ bool ParseMarkup(const char*& s, size_t avail, float size, MarkupState& state)
         {
             if (idEnd[0] == '/' && idEnd[1] == '>')
             {
-                if (auto const texture = GW2Viewer::G::Game.Texture.Get(textureFileID); !texture || texture->TextureLoadingState == GW2Viewer::Data::Texture::TextureEntry::TextureLoadingStates::NotLoaded)
-                    GW2Viewer::G::Game.Texture.Load(textureFileID);
-                else if (texture && texture->Texture && texture->Texture->Handle.GetTexID())
+                if (auto const texture = G::Game.Texture.Get(textureFileID))
                 {
                     auto const aspect = (float)texture->Texture->Width / texture->Texture->Height;
                     auto const height = size + ImGui::GetStyle().FramePadding.y * 2;
@@ -856,7 +854,7 @@ void ImGui::DrawWindowShadow(char const* name, ImGuiWindowFlags flags)
 {
     if (!(flags & ImGuiWindowFlags_ChildWindow) && !IsWindowDocked() && name != "##MainMenuBar"sv)
     {
-        if (auto const texture = G::Game.Texture.Get(G::UI.Textures.WindowShadow); texture && texture->Texture && texture->Texture->Handle.GetTexID())
+        if (auto const texture = G::Game.Texture.Get(G::UI.Textures.WindowShadow))
         {
             SetStateStorage(nullptr); // Workaround for ImGui not setting window->DC.StateStorage until later in the Begin function
             auto& lerp = *GetStateStorage()->GetFloatRef(GetID("##WindowShadowLerp"), 0.0f);

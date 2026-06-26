@@ -8,6 +8,7 @@
 module GW2Viewer.Data.Texture.Manager;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Data.Game;
+import GW2Viewer.Services.Graphics;
 import <gsl/util>;
 
 void StripPNGMetadata(std::filesystem::path const& path)
@@ -101,6 +102,28 @@ void StripPNGMetadata(std::filesystem::path const& path)
 namespace GW2Viewer::Data::Texture
 {
 
+TextureEntry const* Manager::Get(uint32 fileID, LoadTextureOptions const& options)
+{
+    auto texture = GetEntry(fileID);
+    if (!texture || texture->TextureLoadingState == TextureEntry::TextureLoadingStates::NotLoaded)
+        texture = Load(fileID, options);
+    if (texture && texture->Texture && texture->Texture->Handle.GetTexID())
+        return texture;
+    return nullptr;
+}
+
+TextureEntry const* Manager::GetEntry(uint32 fileID)
+{
+    TextureEntry* texture = nullptr;
+    std::scoped_lock _(m_mutex);
+    if (auto const itr = m_textures.find(fileID); itr != m_textures.end())
+    {
+        texture = itr->second.get();
+        texture->UpdateUnloadTime();
+    }
+    return texture;
+}
+
 std::unique_ptr<Texture> Manager::Create(uint32 width, uint32 height, void const* data)
 {
     auto* device = G::Services::Graphics.Device;
@@ -142,7 +165,7 @@ std::unique_ptr<Texture> Manager::Create(uint32 width, uint32 height, void const
     return std::make_unique<Texture>((uintptr_t)ptr, width, height);
 }
 
-void Manager::Load(uint32 fileID, LoadTextureOptions const& options)
+TextureEntry const* Manager::Load(uint32 fileID, LoadTextureOptions const& options)
 {
     std::scoped_lock _(m_mutex);
     auto [itr, added] = m_textures.try_emplace(fileID, nullptr);
@@ -159,7 +182,7 @@ void Manager::Load(uint32 fileID, LoadTextureOptions const& options)
             temp.Options = options;
             GetTextureRGBAImage(temp);
         }
-        return;
+        return itr->second.get();
     }
 
     auto& texture = itr->second;
@@ -173,6 +196,8 @@ void Manager::Load(uint32 fileID, LoadTextureOptions const& options)
 
     if (!m_loadingThread)
         m_loadingThread.emplace([this] { LoadingThread(); });
+
+    return texture.get();
 }
 uint32 Manager::Load(std::filesystem::path const& localFilePath, LoadTextureOptions const& options)
 {
